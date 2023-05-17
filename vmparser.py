@@ -162,8 +162,8 @@ def storage_info():
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
 
-
 # End of Button contents ---------------------------------------------------#
+
 
 # Create the main window
 root = tk.Tk()
