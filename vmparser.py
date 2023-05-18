@@ -8,7 +8,7 @@ import gzip
 
 selected_folder_path = os.getcwd()
 
-BUILDVER = "0.3.9"
+BUILDVER = "0.4.0"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -267,9 +267,14 @@ matching_text.config(yscrollcommand=scrollbar.set)
 top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 
+# Create the label
+label_text = "Browse to Extracted Folder"
+label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
+label.pack(side="left", padx=(15, 1), pady=10)
+
 # Create the "Browse" button
 browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
-browse_button.pack(side="left", padx=100, pady=10)
+browse_button.pack(side="left", padx=(1,150), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
