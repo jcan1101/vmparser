@@ -8,7 +8,7 @@ import gzip
 
 selected_folder_path = os.getcwd()
 
-BUILDVER = "0.4.0"
+BUILDVER = "0.4.2"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -95,7 +95,8 @@ def network_info():
         with open(network_file_path, 'w') as output_file:
             output_file.write("\n".join(matching_lines))
     except FileNotFoundError:
-        print(f"One of the files not found.")
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "One of the command files not found.")
 
 
 def storage_info():
@@ -190,10 +191,22 @@ def browse_folder():
     folder_path = filedialog.askdirectory()
     if folder_path:
         # Do something with the selected folder path
-        print("Selected folder path:", folder_path)
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Selected folder path: " + folder_path + "\n\n")
+
         # You can store the path in a variable for later use
         global selected_folder_path
         selected_folder_path = folder_path
+        vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+
+        try:
+            with open(vm_version_path, 'r') as vm_version_file:
+                vm_version_content = vm_version_file.read()
+            matching_text.insert(tk.END, "VM Version:\n")
+            matching_text.insert(tk.END, vm_version_content)
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "VM Version file not found.")
+
 
 # Open Review Folder
 def open_folder_explorer():
@@ -255,8 +268,9 @@ root = tk.Tk()
 root.title("VM Log Parser  " + BUILDVER)
 
 # Create the text box for displaying
-matching_text = tk.Text(root, height=50, width=220)
+matching_text = tk.Text(root, height=50, width=220, background="light gray")
 matching_text.grid(row=0, column=0, padx=10, pady=10)
+
 
 # Create a vertical scroll bar
 scrollbar = tk.Scrollbar(root, command=matching_text.yview)
