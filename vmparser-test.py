@@ -1,33 +1,41 @@
 import tkinter as tk
+from tkinter import filedialog, ttk
 import os
+from tabulate import tabulate
+import subprocess
+import gzip
+
+selected_folder_path = os.getcwd()
+
+BUILDVER = "0.2.2"
 
 # Setup Review Folder for output text files
-folder_path = "Review"
+export_path = "Review"
 
 # Check if the folder exists
-if not os.path.exists(folder_path):
+if not os.path.exists(export_path):
     # Create the folder
-    os.makedirs(folder_path)
-    print(f"Folder '{folder_path}' created.")
+    os.makedirs(export_path)
+    print(f"Parsed files will be stored in '{export_path}' Folder.")
 else:
-    print(f"Folder '{folder_path}' already exists.")
+    print(f"Parsed files will be stored in '{export_path}' Folder.")
 
 
-def read_files():
-    module_file_path = "commands/esxcfg-module_-q.txt"
-    vib_file_path = "commands/localcli_software-vib-list.txt"
+def driver_info():
+    module_file_path = selected_folder_path + "/commands/esxcfg-module_-q.txt"
+    vib_file_path = selected_folder_path + "/commands/localcli_software-vib-list.txt"
     driver_file_path = "Review/drivers.txt"
 
     matching_lines = []
 
-    # Read the contents of esx_file_path
+    # Read the contents of module file and replace "_" with "-"
     with open(module_file_path, 'r') as esx_file:
-        esx_lines = esx_file.readlines()
+        esx_lines = [line.strip().replace("_", "-") for line in esx_file.readlines()]
 
     # Read the contents of vib_file_path and search for matching lines
     with open(vib_file_path, 'r') as vib_file:
         for line in vib_file:
-            if any(esx_line.strip() in line for esx_line in esx_lines):
+            if any(esx_line in line for esx_line in esx_lines):
                 matching_lines.append(line.strip())
 
     # Display the matching lines in the window
@@ -41,9 +49,9 @@ def read_files():
 
 def network_info():
     network_file_path = "Review/network.txt"
-    nicinfo_file = "commands/nicinfo.sh.txt"
-    vswitch_file = "commands/esxcfg-vswitch_-l.txt"
-    vmknic_file = "commands/esxcfg-vmknic_-l.txt"
+    nicinfo_file = selected_folder_path + "/commands/nicinfo.sh.txt"
+    vswitch_file = selected_folder_path + "/commands/esxcfg-vswitch_-l.txt"
+    vmknic_file = selected_folder_path + "/commands/esxcfg-vmknic_-l.txt"
 
     try:
         with open(nicinfo_file, 'r') as file:
@@ -53,19 +61,30 @@ def network_info():
                 if 'NIC:' in line:
                     break
                 matching_lines.append(line.strip())
-                matching_lines.append("")  # Append an empty line for spacing
 
         with open(vmknic_file, 'r') as file:
+            matching_lines.append("                       ")
+            matching_lines.append("VM Kernel Port Info:   ")
+            matching_lines.append("_______________________")
+            matching_lines.append("")
             lines = file.readlines()
             for line in lines:
                 matching_lines.append(line.strip())
-                matching_lines.append("")  # Append an empty line for spacing
+                matching_lines.append("--------------------------------------------------------------------------"
+                                      "--------------------------------------------------------------------------"
+                                      "-------------------------------------------------------------")
 
         with open(vswitch_file, 'r') as file:
+            matching_lines.append("")
+            matching_lines.append("                       ")
+            matching_lines.append("vSwitch Info:")
+            matching_lines.append("_______________________")
+            matching_lines.append("")
             lines = file.readlines()
             for line in lines:
                 matching_lines.append(line.strip())
-                matching_lines.append("")  # Append an empty line for spacing
+                matching_lines.append("--------------------------------------------------------------------------"
+                                      "-------------")
 
         # Display the matching lines in the window
         matching_text.delete(1.0, tk.END)
@@ -78,33 +97,199 @@ def network_info():
         print(f"One of the files not found.")
 
 
+def storage_info():
+    adapters_path = selected_folder_path + "/commands/localcli_storage-core-adapter-list.txt"
+    disk_volume_path = selected_folder_path + "/commands/df.txt"
+    storage_disks = selected_folder_path + "/commands/localcli_storage-core-path-list.txt"
+    storage_file_path = "Review/storage.txt"
+
+    # Read the contents of adapters_path
+    with open(adapters_path, 'r') as adapters_file:
+        adapters_content = adapters_file.read()
+
+    # Read the contents of disk_volume_path
+    with open(disk_volume_path, 'r') as disk_volume_file:
+        disk_volume_lines = disk_volume_file.readlines()
+
+    # Read the contents of storage_disks
+    with open(storage_disks, 'r') as storage_disks_file:
+        storage_disks_lines = storage_disks_file.readlines()
+
+    # Custom lines of text to be displayed above the adapters' content
+    custom_header_adapters = [
+        "=== Storage Adapters ===",
+        "------------------------",
+        "",
+    ]
+
+    # Custom lines of text to be displayed above the storage disks' content
+    custom_header_storage_disks = [
+        "=== Physical Disks ===",
+        "----------------------",
+        "",
+    ]
+
+    # Custom lines of text to be displayed between the files' content
+    custom_lines = [
+        "=== Mounted Volumes ===",
+        "-----------------------",
+        "",
+    ]
+
+    # Read the contents of disk_volume_path
+    with open(disk_volume_path, 'r') as disk_volume_file:
+        disk_volume_lines = disk_volume_file.readlines()
+
+    # Process the lines and split them into columns
+    table_data = []
+    for line in disk_volume_lines:
+        columns = line.strip().split()
+        table_data.append(columns)
+
+    # Format the table
+    table = tabulate(table_data, headers='firstrow', tablefmt='grid')
+
+
+    # Format the lines from disk_volume_lines and remove the first column
+    # formatted_disk_volume_lines = []
+    # for line in disk_volume_lines:
+    #    columns = line.strip().split()
+    #    formatted_disk_volume_lines.append(" ".join(columns[1:]))
+
+    # Specify the keywords to filter
+    keywords = ['Device:', 'Target Identifier:', 'Display Name:', 'Adapter:']
+
+    # Filter the lines based on keywords
+    filtered_lines = []
+    for line in storage_disks_lines:
+        if any(keyword in line for keyword in keywords):
+            filtered_lines.append(line)
+            if 'Target Identifier:' in line:
+                filtered_lines.append("-------------------------------------------------------------------------\n")
+
+    # Concatenate the lines of text with the filtered lines
+    filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
+
+
+    # Concatenate the lines of text with the file contents
+    display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
+                   "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
+                   filtered_text
+
+    # Display the matching lines in the window
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, display_text)
+
+    # Save the matching lines to the output file
+    with open(storage_file_path, 'w') as storage_file:
+        storage_file.write(display_text)
+
+# Browse to vmbundle folder
+def browse_folder():
+    folder_path = filedialog.askdirectory()
+    if folder_path:
+        # Do something with the selected folder path
+        print("Selected folder path:", folder_path)
+        # You can store the path in a variable for later use
+        global selected_folder_path
+        selected_folder_path = folder_path
+
+# Open Review Folder
+def open_folder_explorer():
+    # Set Review folder in CWD
+    folder_path = os.path.join(os.getcwd(), "Review")
+    # Use the 'explorer' command in Windows to open the folder in File Explorer
+    subprocess.Popen(f'explorer "{folder_path}"')
+
+# Show vmkernel logs
+def show_filtered_logs():
+    log_files = []
+    log_file_path = selected_folder_path + "/var/run/log/vmkernel"
+    filter_text = filter_entry.get()
+
+    # Find all log files that start with 'vmkernel'
+    for file in os.listdir(selected_folder_path + "/var/run/log"):
+        if file.startswith("vmkernel"):
+            log_files.append(os.path.join(selected_folder_path + "/var/run/log", file))
+
+    filtered_lines = []
+    for log_file_path in log_files:
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'r') as log_file:
+                lines = log_file.readlines()
+
+            filtered_lines.extend([line.strip() for line in lines if filter_text in line])
+
+    if filtered_lines:
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "\n".join(filtered_lines))
+    else:
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "No matching lines found.")
+
+# End of Button contents ---------------------------------------------------#
+
 # Create the main window
 root = tk.Tk()
-root.title("VM Log Parser")
 
-# Create the "Driver" button
-driver_button = tk.Button(root, text="Drivers", command=read_files)
-driver_button.grid(row=0, column=0, padx=10, pady=10)
-
-# Network info button
-button2 = tk.Button(root, text="Network", command=network_info)
-button2.grid(row=0, column=1, padx=10, pady=10)
-
-button3 = tk.Button(root, text="Button 3")
-button3.grid(row=0, column=2, padx=10, pady=10)
-
-button4 = tk.Button(root, text="Button 4")
-button4.grid(row=1, column=0, padx=10, pady=10)
-
-button5 = tk.Button(root, text="Button 5")
-button5.grid(row=1, column=1, padx=10, pady=10)
-
-button6 = tk.Button(root, text="Button 6")
-button6.grid(row=1, column=2, padx=10, pady=10)
+# Set the title
+root.title("VM Log Parser  " + BUILDVER)
 
 # Create the text box for displaying
 matching_text = tk.Text(root, height=50, width=220)
-matching_text.grid(row=2, columnspan=6, padx=10, pady=10)
+matching_text.grid(row=0, column=0, padx=10, pady=10)
+
+# Create a vertical scroll bar
+scrollbar = tk.Scrollbar(root, command=matching_text.yview)
+scrollbar.grid(row=0, column=1, sticky='ns')
+matching_text.config(yscrollcommand=scrollbar.set)
+
+# Create the top button row
+top_button_frame = tk.Frame(root)
+top_button_frame.grid(row=1, column=0, padx=10, pady=10)
+
+# Create the "Browse" button
+browse_button = tk.Button(top_button_frame, text="Browse", command=browse_folder)
+browse_button.pack(side="left", padx=100, pady=10)
+
+# Create a separator widget
+separator = ttk.Separator(top_button_frame, orient="vertical")
+separator.pack(side="left", padx=5, pady=10)
+
+# Create the "Drivers" button
+driver_button = tk.Button(top_button_frame, text="Drivers", command=driver_info)
+driver_button.pack(side="left", padx=5, pady=10)
+
+# Create the "Network" button
+network_button = tk.Button(top_button_frame, text="Network", command=network_info)
+network_button.pack(side="left", padx=5, pady=10)
+
+# Create the "Storage Info" button
+storage_button = tk.Button(top_button_frame, text="Storage Info", command=storage_info)
+storage_button.pack(side="left", padx=5, pady=10)
+
+# Create the "Button 4" button
+button4 = tk.Button(top_button_frame, text="Button 4")
+button4.pack(side="left", padx=5, pady=10)
+
+# Create the "Button 5" button
+button5 = tk.Button(top_button_frame, text="Button 5")
+button5.pack(side="left", padx=5, pady=10)
+
+# Create the "Show Logs" button
+show_logs_button = tk.Button(top_button_frame, text="Show Logs", command=show_filtered_logs)
+show_logs_button.pack(side="left", padx=5, pady=10)
+
+# Create the filter entry box
+filter_entry = tk.Entry(top_button_frame, width=20)
+filter_entry.pack(side="left", padx=5, pady=10)
+
+# Bind the <Return> event to the filter entry box
+filter_entry.bind('<Return>', lambda event: show_filtered_logs())
+
+# Create the "Review Folder" button
+review_button = tk.Button(top_button_frame, text="Review Folder", command=open_folder_explorer)
+review_button.pack(side="left", padx=10, pady=10)
 
 # Start the main loop
 root.mainloop()
