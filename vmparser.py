@@ -198,14 +198,27 @@ def browse_folder():
         global selected_folder_path
         selected_folder_path = folder_path
         vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+        profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
 
         try:
             with open(vm_version_path, 'r') as vm_version_file:
                 vm_version_content = vm_version_file.read()
-            matching_text.insert(tk.END, "VM Version:\n")
+            matching_text.insert(tk.END, "VMware Version:\n")
             matching_text.insert(tk.END, vm_version_content)
         except FileNotFoundError:
             matching_text.insert(tk.END, "VM Version file not found.")
+
+        try:
+            with open(profile_path, 'r') as profile_file:
+                for line in profile_file:
+                    if "Name:" in line:
+                        matching_text.insert(tk.END, "\n\n")
+                        matching_text.insert(tk.END, "Custom Image: " + line.strip())
+                        break
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "\n\nProfile file not found.")
+
 
 
 # Open Review Folder
