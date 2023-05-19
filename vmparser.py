@@ -9,7 +9,7 @@ import gzip
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.4.8"
+BUILDVER = "0.5.1"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -55,7 +55,6 @@ def network_info():
     nicinfo_file = selected_folder_path + "/commands/nicinfo.sh.txt"
     vswitch_file = selected_folder_path + "/commands/esxcfg-vswitch_-l.txt"
     vmknic_file = selected_folder_path + "/commands/esxcfg-vmknic_-l.txt"
-
 
     try:
         with open(nicinfo_file, 'r') as file:
@@ -280,12 +279,13 @@ def show_filtered_logs():
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
 
-# Show version button
-def version_show_info():
-    matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
+# Show version Info
+# def version_show_info():
+    # matching_text.delete(1.0, tk.END)
+    # matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
 
 # End of Button contents ---------------------------------------------------#
+
 
 def boot_log_info():
     file_path = selected_folder_path + "/var/run/log/vmksummary.log"
@@ -304,6 +304,56 @@ def boot_log_info():
     except FileNotFoundError:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "File not found: " + file_path)
+
+
+def vsan_disk_info():
+    file_path = selected_folder_path + "/commands/vdq_-q--H.txt"
+    output_file_path = "Review/vsan_output.txt"
+
+    try:
+        with open(file_path, 'r') as file:
+            # Read the contents of the file
+            lines = file.readlines()
+
+        # Configure the tag for red formatting
+        matching_text.tag_configure("red", foreground="red")
+
+        # Clear the text box
+        matching_text.delete(1.0, tk.END)
+
+        flagged_words = set()  # Store "naa." words flagged red
+
+        for line in lines:
+            stripped_line = line.strip()
+            if "Size(MB):  0" in stripped_line or "IsPDL?:  1" in stripped_line:
+                matching_text.insert(tk.END, stripped_line + "\n", "red")
+            else:
+                words = stripped_line.split()
+                for word in words:
+                    if word.startswith('naa.') and word in flagged_words:
+                        matching_text.insert(tk.END, word + ' ', 'red')
+                    elif ("/naa." in word or "error" in stripped_line.lower() or "Failed" in stripped_line):
+                        subwords = word.split('/')
+                        for subword in subwords:
+                            if subword.startswith('naa.'):
+                                flagged_words.add(subword)
+                                matching_text.insert(tk.END, '/' + subword + ' ', 'red')
+                            else:
+                                matching_text.insert(tk.END, '/' + subword + ' ')
+                        # delete the leading '/' from the text widget
+                        matching_text.delete('end - 2c')
+                    else:
+                        matching_text.insert(tk.END, word + ' ')
+                matching_text.insert(tk.END, '\n')
+
+        # Save the content to a separate file
+        with open(output_file_path, 'w') as output_file:
+            output_file.writelines(lines)
+
+    except FileNotFoundError:
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "File not found: " + file_path)
+
 
 # Create Window
 root = tk.Tk()
@@ -326,7 +376,7 @@ top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 
 # Create the label
-label_text = "Browse to Extracted Folder"
+label_text = "Browse to Extracted Folder -->"
 label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
 label.pack(side="left", padx=(15, 1), pady=10)
 
@@ -351,7 +401,7 @@ storage_button = ttk.Button(top_button_frame, text="Storage Info", command=stora
 storage_button.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 4" button
-button4 = ttk.Button(top_button_frame, text="Button 4", style="Custom.TButton")
+button4 = ttk.Button(top_button_frame, text="VSAN Disks", style="Custom.TButton", command=vsan_disk_info)
 button4.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 5" button

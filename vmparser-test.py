@@ -7,8 +7,9 @@ import gzip
 
 
 selected_folder_path = os.getcwd()
+vmware_version = ""
 
-BUILDVER = "0.4.2"
+BUILDVER = "0.4.9"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -41,11 +42,12 @@ def driver_info():
 
     # Display the matching lines in the window
     matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, "\n".join(matching_lines))
+    matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + vmware_version + "\n")
+    matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
 
     # Save the matching lines to the output file
     with open(driver_file_path, 'w') as output_file:
-        output_file.write("\n".join(matching_lines))
+        output_file.write("Drivers in use: \n" + "\n".join(matching_lines))
 
 
 def network_info():
@@ -65,7 +67,8 @@ def network_info():
 
         with open(vmknic_file, 'r') as file:
             matching_lines.append("                       ")
-            matching_lines.append("VM Kernel Port Info:   ")
+            matching_lines.append("VM Kernel Port Info:")
+            matching_text.insert(tk.END, "VM Kernel Port Info:\n")
             matching_lines.append("_______________________")
             matching_lines.append("")
             lines = file.readlines()
@@ -103,6 +106,7 @@ def storage_info():
     adapters_path = selected_folder_path + "/commands/localcli_storage-core-adapter-list.txt"
     disk_volume_path = selected_folder_path + "/commands/df.txt"
     storage_disks = selected_folder_path + "/commands/localcli_storage-core-path-list.txt"
+    nvme_info = selected_folder_path + "/commands/localcli_nvme-namespace-list.txt"
     storage_file_path = "Review/storage.txt"
 
     # Read the contents of adapters_path
@@ -116,6 +120,10 @@ def storage_info():
     # Read the contents of storage_disks
     with open(storage_disks, 'r') as storage_disks_file:
         storage_disks_lines = storage_disks_file.readlines()
+
+    # Read the contents of nvme_info
+    with open(nvme_info, 'r') as nvme_file:
+        nvme_content = nvme_file.read()
 
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
@@ -138,6 +146,14 @@ def storage_info():
         "",
     ]
 
+    # Custom lines of text to be displayed above the nvme_info content
+    custom_header_nvme_info = [
+        "=== NVMe Info ===",
+        "-----------------",
+        "",
+    ]
+
+
     # Read the contents of disk_volume_path
     with open(disk_volume_path, 'r') as disk_volume_file:
         disk_volume_lines = disk_volume_file.readlines()
@@ -150,13 +166,6 @@ def storage_info():
 
     # Format the table
     table = tabulate(table_data, headers='firstrow', tablefmt='grid')
-
-
-    # Format the lines from disk_volume_lines and remove the first column
-    # formatted_disk_volume_lines = []
-    # for line in disk_volume_lines:
-    #    columns = line.strip().split()
-    #    formatted_disk_volume_lines.append(" ".join(columns[1:]))
 
     # Specify the keywords to filter
     keywords = ['Device:', 'Target Identifier:', 'Display Name:', 'Adapter:']
@@ -172,10 +181,10 @@ def storage_info():
     # Concatenate the lines of text with the filtered lines
     filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
 
-
     # Concatenate the lines of text with the file contents
     display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
                    "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
+                   "\n".join(custom_header_nvme_info) + "\n" + nvme_content + "\n\n" + \
                    filtered_text
 
     # Display the matching lines in the window
@@ -185,6 +194,7 @@ def storage_info():
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
+
 
 # Browse to vmbundle folder
 def browse_folder():
@@ -200,12 +210,14 @@ def browse_folder():
         vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
         profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
 
-
         try:
             with open(vm_version_path, 'r') as vm_version_file:
                 vm_version_content = vm_version_file.read()
-            matching_text.insert(tk.END, "VMware Version:\n")
+            matching_text.insert(tk.END, "Discovered VMware Build:\n")
             matching_text.insert(tk.END, vm_version_content)
+            global vmware_version
+            vmware_version = vm_version_content
+
         except FileNotFoundError:
             matching_text.insert(tk.END, "VM Version file not found.")
 
@@ -213,12 +225,12 @@ def browse_folder():
             with open(profile_path, 'r') as profile_file:
                 for line in profile_file:
                     if "Name:" in line:
-                        matching_text.insert(tk.END, "\n\n")
-                        matching_text.insert(tk.END, "Custom Image: " + line.strip())
+                        name = line.strip().split(" ", 1)[1]
+                        matching_text.insert(tk.END, "\n")
+                        matching_text.insert(tk.END, "Image: " + name)
                         break
         except FileNotFoundError:
-            matching_text.insert(tk.END, "\n\nProfile file not found.")
-
+            matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
 # Open Review Folder
@@ -228,8 +240,6 @@ def open_folder_explorer():
     # Use the 'explorer' command in Windows to open the folder in File Explorer
     subprocess.Popen(f'explorer "{folder_path}"')
 
-# Show vmkernel logs
-import os
 
 # Show vmkernel logs
 def show_filtered_logs():
@@ -269,9 +279,65 @@ def show_filtered_logs():
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
 
-
+# Show version Info
+# def version_show_info():
+    # matching_text.delete(1.0, tk.END)
+    # matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
 
 # End of Button contents ---------------------------------------------------#
+
+
+def boot_log_info():
+    file_path = selected_folder_path + "/var/run/log/vmksummary.log"
+
+    try:
+        with open(file_path, 'r') as file:
+            matching_lines = []
+            for line in file:
+                if 'boot' in line:
+                    matching_lines.append(line.strip())
+
+        # Display the matching lines in the window
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "\n".join(matching_lines))
+
+    except FileNotFoundError:
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "File not found: " + file_path)
+
+
+def vsan_disk_info():
+    file_path = selected_folder_path + "/commands/vdq_-q--H.txt"
+    output_file_path = "Review/vsan_output.txt"
+
+    try:
+        with open(file_path, 'r') as file:
+            # Read the contents of the file
+            lines = file.readlines()
+
+        # Display the content in the text box
+        matching_text.delete(1.0, tk.END)
+        for line in lines:
+            stripped_line = line.strip()
+            if ("Size(MB):  0" in stripped_line or
+                    "IsPDL?:  1" in stripped_line or
+                    "error" in stripped_line.lower() or
+                    "Failed" in stripped_line):
+
+                matching_text.insert(tk.END, stripped_line + "\n", "red")
+            else:
+                matching_text.insert(tk.END, stripped_line + "\n")
+
+        # Configure the tag for red formatting
+        matching_text.tag_configure("red", foreground="red")
+
+        # Save the content to a separate file
+        with open(output_file_path, 'w') as output_file:
+            output_file.writelines(lines)
+
+    except FileNotFoundError:
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "File not found: " + file_path)
 
 
 # Create Window
@@ -295,7 +361,7 @@ top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 
 # Create the label
-label_text = "Browse to Extracted Folder"
+label_text = "Browse to Extracted Folder -->"
 label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
 label.pack(side="left", padx=(15, 1), pady=10)
 
@@ -320,11 +386,11 @@ storage_button = ttk.Button(top_button_frame, text="Storage Info", command=stora
 storage_button.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 4" button
-button4 = ttk.Button(top_button_frame, text="Button 4", style="Custom.TButton")
+button4 = ttk.Button(top_button_frame, text="VSAN Disks", style="Custom.TButton", command=vsan_disk_info)
 button4.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 5" button
-button5 = ttk.Button(top_button_frame, text="Button 5", style="Custom.TButton")
+button5 = ttk.Button(top_button_frame, text="Boot Log", style="Custom.TButton", command=boot_log_info)
 button5.pack(side="left", padx=5, pady=10)
 
 # Create the "Show Logs" button
