@@ -7,8 +7,9 @@ import gzip
 
 
 selected_folder_path = os.getcwd()
+vmware_version = ""
 
-BUILDVER = "0.4.3"
+BUILDVER = "0.4.8"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -41,6 +42,7 @@ def driver_info():
 
     # Display the matching lines in the window
     matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + vmware_version + "\n")
     matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
 
     # Save the matching lines to the output file
@@ -212,8 +214,11 @@ def browse_folder():
         try:
             with open(vm_version_path, 'r') as vm_version_file:
                 vm_version_content = vm_version_file.read()
-            matching_text.insert(tk.END, "VMware Version:\n")
+            matching_text.insert(tk.END, "Discovered VMware Build:\n")
             matching_text.insert(tk.END, vm_version_content)
+            global vmware_version
+            vmware_version = vm_version_content
+
         except FileNotFoundError:
             matching_text.insert(tk.END, "VM Version file not found.")
 
@@ -223,10 +228,10 @@ def browse_folder():
                     if "Name:" in line:
                         name = line.strip().split(" ", 1)[1]
                         matching_text.insert(tk.END, "\n")
-                        matching_text.insert(tk.END, "Custom Image: " + name)
+                        matching_text.insert(tk.END, "Image: " + name)
                         break
         except FileNotFoundError:
-            matching_text.insert(tk.END, "\n\nProfile file not found.")
+            matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
 # Open Review Folder
@@ -275,9 +280,30 @@ def show_filtered_logs():
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
 
+# Show version button
+def version_show_info():
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
 
 # End of Button contents ---------------------------------------------------#
 
+def boot_log_info():
+    file_path = selected_folder_path + "/var/run/log/vmksummary.log"
+
+    try:
+        with open(file_path, 'r') as file:
+            matching_lines = []
+            for line in file:
+                if 'boot' in line:
+                    matching_lines.append(line.strip())
+
+        # Display the matching lines in the window
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "\n".join(matching_lines))
+
+    except FileNotFoundError:
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "File not found: " + file_path)
 
 # Create Window
 root = tk.Tk()
@@ -329,7 +355,7 @@ button4 = ttk.Button(top_button_frame, text="Button 4", style="Custom.TButton")
 button4.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 5" button
-button5 = ttk.Button(top_button_frame, text="Button 5", style="Custom.TButton")
+button5 = ttk.Button(top_button_frame, text="Boot Log", style="Custom.TButton", command=boot_log_info)
 button5.pack(side="left", padx=5, pady=10)
 
 # Create the "Show Logs" button
