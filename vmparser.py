@@ -8,7 +8,7 @@ import gzip
 
 selected_folder_path = os.getcwd()
 
-BUILDVER = "0.4.2"
+BUILDVER = "0.4.3"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -41,11 +41,11 @@ def driver_info():
 
     # Display the matching lines in the window
     matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, "\n".join(matching_lines))
+    matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
 
     # Save the matching lines to the output file
     with open(driver_file_path, 'w') as output_file:
-        output_file.write("\n".join(matching_lines))
+        output_file.write("Drivers in use: \n" + "\n".join(matching_lines))
 
 
 def network_info():
@@ -53,6 +53,7 @@ def network_info():
     nicinfo_file = selected_folder_path + "/commands/nicinfo.sh.txt"
     vswitch_file = selected_folder_path + "/commands/esxcfg-vswitch_-l.txt"
     vmknic_file = selected_folder_path + "/commands/esxcfg-vmknic_-l.txt"
+
 
     try:
         with open(nicinfo_file, 'r') as file:
@@ -65,7 +66,8 @@ def network_info():
 
         with open(vmknic_file, 'r') as file:
             matching_lines.append("                       ")
-            matching_lines.append("VM Kernel Port Info:   ")
+            matching_lines.append("VM Kernel Port Info:")
+            matching_text.insert(tk.END, "VM Kernel Port Info:\n")
             matching_lines.append("_______________________")
             matching_lines.append("")
             lines = file.readlines()
@@ -103,6 +105,7 @@ def storage_info():
     adapters_path = selected_folder_path + "/commands/localcli_storage-core-adapter-list.txt"
     disk_volume_path = selected_folder_path + "/commands/df.txt"
     storage_disks = selected_folder_path + "/commands/localcli_storage-core-path-list.txt"
+    nvme_info = selected_folder_path + "/commands/localcli_nvme-namespace-list.txt"
     storage_file_path = "Review/storage.txt"
 
     # Read the contents of adapters_path
@@ -116,6 +119,10 @@ def storage_info():
     # Read the contents of storage_disks
     with open(storage_disks, 'r') as storage_disks_file:
         storage_disks_lines = storage_disks_file.readlines()
+
+    # Read the contents of nvme_info
+    with open(nvme_info, 'r') as nvme_file:
+        nvme_content = nvme_file.read()
 
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
@@ -138,6 +145,14 @@ def storage_info():
         "",
     ]
 
+    # Custom lines of text to be displayed above the nvme_info content
+    custom_header_nvme_info = [
+        "=== NVMe Info ===",
+        "-----------------",
+        "",
+    ]
+
+
     # Read the contents of disk_volume_path
     with open(disk_volume_path, 'r') as disk_volume_file:
         disk_volume_lines = disk_volume_file.readlines()
@@ -150,13 +165,6 @@ def storage_info():
 
     # Format the table
     table = tabulate(table_data, headers='firstrow', tablefmt='grid')
-
-
-    # Format the lines from disk_volume_lines and remove the first column
-    # formatted_disk_volume_lines = []
-    # for line in disk_volume_lines:
-    #    columns = line.strip().split()
-    #    formatted_disk_volume_lines.append(" ".join(columns[1:]))
 
     # Specify the keywords to filter
     keywords = ['Device:', 'Target Identifier:', 'Display Name:', 'Adapter:']
@@ -172,10 +180,10 @@ def storage_info():
     # Concatenate the lines of text with the filtered lines
     filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
 
-
     # Concatenate the lines of text with the file contents
     display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
                    "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
+                   "\n".join(custom_header_nvme_info) + "\n" + nvme_content + "\n\n" + \
                    filtered_text
 
     # Display the matching lines in the window
@@ -185,6 +193,7 @@ def storage_info():
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
+
 
 # Browse to vmbundle folder
 def browse_folder():
@@ -200,7 +209,6 @@ def browse_folder():
         vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
         profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
 
-
         try:
             with open(vm_version_path, 'r') as vm_version_file:
                 vm_version_content = vm_version_file.read()
@@ -213,12 +221,12 @@ def browse_folder():
             with open(profile_path, 'r') as profile_file:
                 for line in profile_file:
                     if "Name:" in line:
-                        matching_text.insert(tk.END, "\n\n")
-                        matching_text.insert(tk.END, "Custom Image: " + line.strip())
+                        name = line.strip().split(" ", 1)[1]
+                        matching_text.insert(tk.END, "\n")
+                        matching_text.insert(tk.END, "Custom Image: " + name)
                         break
         except FileNotFoundError:
             matching_text.insert(tk.END, "\n\nProfile file not found.")
-
 
 
 # Open Review Folder
@@ -228,8 +236,6 @@ def open_folder_explorer():
     # Use the 'explorer' command in Windows to open the folder in File Explorer
     subprocess.Popen(f'explorer "{folder_path}"')
 
-# Show vmkernel logs
-import os
 
 # Show vmkernel logs
 def show_filtered_logs():
@@ -268,7 +274,6 @@ def show_filtered_logs():
     else:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
-
 
 
 # End of Button contents ---------------------------------------------------#

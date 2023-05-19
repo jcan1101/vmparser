@@ -5,9 +5,10 @@ from tabulate import tabulate
 import subprocess
 import gzip
 
+
 selected_folder_path = os.getcwd()
 
-BUILDVER = "0.2.2"
+BUILDVER = "0.4.2"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -94,7 +95,8 @@ def network_info():
         with open(network_file_path, 'w') as output_file:
             output_file.write("\n".join(matching_lines))
     except FileNotFoundError:
-        print(f"One of the files not found.")
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "One of the command files not found.")
 
 
 def storage_info():
@@ -189,10 +191,35 @@ def browse_folder():
     folder_path = filedialog.askdirectory()
     if folder_path:
         # Do something with the selected folder path
-        print("Selected folder path:", folder_path)
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Selected folder path: " + folder_path + "\n\n")
+
         # You can store the path in a variable for later use
         global selected_folder_path
         selected_folder_path = folder_path
+        vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+        profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+
+        try:
+            with open(vm_version_path, 'r') as vm_version_file:
+                vm_version_content = vm_version_file.read()
+            matching_text.insert(tk.END, "VMware Version:\n")
+            matching_text.insert(tk.END, vm_version_content)
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "VM Version file not found.")
+
+        try:
+            with open(profile_path, 'r') as profile_file:
+                for line in profile_file:
+                    if "Name:" in line:
+                        matching_text.insert(tk.END, "\n\n")
+                        matching_text.insert(tk.END, "Custom Image: " + line.strip())
+                        break
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "\n\nProfile file not found.")
+
+
 
 # Open Review Folder
 def open_folder_explorer():
@@ -202,10 +229,23 @@ def open_folder_explorer():
     subprocess.Popen(f'explorer "{folder_path}"')
 
 # Show vmkernel logs
+import os
+
+# Show vmkernel logs
 def show_filtered_logs():
     log_files = []
     log_file_path = selected_folder_path + "/var/run/log/vmkernel"
     filter_text = filter_entry.get()
+
+    # Find and unzip vmkernel log files from vmkernel.0.gz to vmkernel.7.gz
+    for i in range(8):
+        gz_file_path = log_file_path + "." + str(i) + ".gz"
+        if os.path.exists(gz_file_path):
+            log_files.append(gz_file_path)
+            unzipped_file_path = log_file_path + "_" + str(i)
+            with gzip.open(gz_file_path, 'rb') as gz_file:
+                with open(unzipped_file_path, 'wb') as unzipped_file:
+                    unzipped_file.write(gz_file.read())
 
     # Find all log files that start with 'vmkernel'
     for file in os.listdir(selected_folder_path + "/var/run/log"):
@@ -214,11 +254,13 @@ def show_filtered_logs():
 
     filtered_lines = []
     for log_file_path in log_files:
-        if os.path.exists(log_file_path):
-            with open(log_file_path, 'r') as log_file:
-                lines = log_file.readlines()
+        if log_file_path.endswith(".gz"):
+            continue  # Skip the compressed files that were not found
 
-            filtered_lines.extend([line.strip() for line in lines if filter_text in line])
+        with open(log_file_path, 'r') as log_file:
+            lines = log_file.readlines()
+
+        filtered_lines.extend([line.strip() for line in lines if filter_text in line])
 
     if filtered_lines:
         matching_text.delete(1.0, tk.END)
@@ -227,17 +269,21 @@ def show_filtered_logs():
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
 
+
+
 # End of Button contents ---------------------------------------------------#
 
-# Create the main window
+
+# Create Window
 root = tk.Tk()
 
 # Set the title
 root.title("VM Log Parser  " + BUILDVER)
 
 # Create the text box for displaying
-matching_text = tk.Text(root, height=50, width=220)
+matching_text = tk.Text(root, height=50, width=220, background="light gray")
 matching_text.grid(row=0, column=0, padx=10, pady=10)
+
 
 # Create a vertical scroll bar
 scrollbar = tk.Scrollbar(root, command=matching_text.yview)
@@ -248,36 +294,41 @@ matching_text.config(yscrollcommand=scrollbar.set)
 top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 
+# Create the label
+label_text = "Browse to Extracted Folder"
+label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
+label.pack(side="left", padx=(15, 1), pady=10)
+
 # Create the "Browse" button
-browse_button = tk.Button(top_button_frame, text="Browse", command=browse_folder)
-browse_button.pack(side="left", padx=100, pady=10)
+browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
+browse_button.pack(side="left", padx=(1,150), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
 separator.pack(side="left", padx=5, pady=10)
 
 # Create the "Drivers" button
-driver_button = tk.Button(top_button_frame, text="Drivers", command=driver_info)
+driver_button = ttk.Button(top_button_frame, text="Drivers", command=driver_info, style="Custom.TButton")
 driver_button.pack(side="left", padx=5, pady=10)
 
 # Create the "Network" button
-network_button = tk.Button(top_button_frame, text="Network", command=network_info)
+network_button = ttk.Button(top_button_frame, text="Network", command=network_info, style="Custom.TButton")
 network_button.pack(side="left", padx=5, pady=10)
 
 # Create the "Storage Info" button
-storage_button = tk.Button(top_button_frame, text="Storage Info", command=storage_info)
+storage_button = ttk.Button(top_button_frame, text="Storage Info", command=storage_info, style="Custom.TButton")
 storage_button.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 4" button
-button4 = tk.Button(top_button_frame, text="Button 4")
+button4 = ttk.Button(top_button_frame, text="Button 4", style="Custom.TButton")
 button4.pack(side="left", padx=5, pady=10)
 
 # Create the "Button 5" button
-button5 = tk.Button(top_button_frame, text="Button 5")
+button5 = ttk.Button(top_button_frame, text="Button 5", style="Custom.TButton")
 button5.pack(side="left", padx=5, pady=10)
 
 # Create the "Show Logs" button
-show_logs_button = tk.Button(top_button_frame, text="Show Logs", command=show_filtered_logs)
+show_logs_button = ttk.Button(top_button_frame, text="Show Logs", command=show_filtered_logs, style="Custom.TButton")
 show_logs_button.pack(side="left", padx=5, pady=10)
 
 # Create the filter entry box
@@ -288,8 +339,12 @@ filter_entry.pack(side="left", padx=5, pady=10)
 filter_entry.bind('<Return>', lambda event: show_filtered_logs())
 
 # Create the "Review Folder" button
-review_button = tk.Button(top_button_frame, text="Review Folder", command=open_folder_explorer)
+review_button = ttk.Button(top_button_frame, text="Review Folder", command=open_folder_explorer, style="Custom.TButton")
 review_button.pack(side="left", padx=10, pady=10)
+
+# Configure the button style
+style = ttk.Style()
+style.configure("Custom.TButton", foreground="black", background="white", font=("Arial", 10))
 
 # Start the main loop
 root.mainloop()
