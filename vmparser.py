@@ -11,7 +11,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.4"
+BUILDVER = "0.5.6"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -167,7 +167,6 @@ def storage_info():
         "-----------------",
         "",
     ]
-
 
     # Read the contents of disk_volume_path
     with open(disk_volume_path, 'r') as disk_volume_file:
@@ -453,6 +452,71 @@ def browse_zip():
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
+def browse_tgz():
+    file_path = filedialog.askopenfilename(filetypes=(("Tgz Files", "*.tgz"),))
+    if not file_path:
+        return
+
+    extract_path = os.path.join(os.getcwd(), 'Extracted')
+
+    if not os.path.exists(extract_path):
+        os.makedirs(extract_path)
+
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Extracting .tgz file...\n")
+
+    with tarfile.open(file_path, 'r') as tar_ref:
+        members = tar_ref.getmembers()
+        for i, member in enumerate(members):
+            try:
+                member.name = member.name.replace(':', '_')  # Replace colons with underscore
+                tar_ref.extract(member, path=extract_path)
+                update_progress(progress, i+1, len(members))
+            except Exception as e:
+                print(f"Could not extract {member.name} due to {str(e)}")
+
+    matching_text.insert(tk.END, "Extracted .tgz file.\n\n")
+
+    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
+
+    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
+
+    global selected_folder_path
+
+    if extracted_dirs:
+        selected_folder_path = os.path.join(extract_path, extracted_dirs[0])
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Extracted folder path is: " + selected_folder_path + "\n\n")
+    else:
+        matching_text.insert(tk.END, "No directories found inside the extracted path.")
+        return
+
+    vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+    profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+    try:
+        with open(vm_version_path, 'r') as vm_version_file:
+            vm_version_content = vm_version_file.read()
+        matching_text.insert(tk.END, "Discovered VMware Build:\n")
+        matching_text.insert(tk.END, vm_version_content)
+        global vmware_version
+        vmware_version = vm_version_content
+
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "VM Version file not found.")
+
+    try:
+        with open(profile_path, 'r') as profile_file:
+            for line in profile_file:
+                if "Name:" in line:
+                    name = line.strip().split(" ", 1)[1]
+                    matching_text.insert(tk.END, "\n")
+                    matching_text.insert(tk.END, "Image: " + name)
+                    break
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "\n\nCustom Image not found.")
+
+
 # End of Button contents ---------------------------------------------------#
 
 
@@ -480,16 +544,20 @@ progress = ttk.Progressbar(root, orient="horizontal", length=200)
 progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 
 # Create the label
-label_text = "Browse to Extracted Folder -->"
-label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
-label.pack(side="left", padx=(15, 1), pady=10)
+# label_text = "Browse to Extracted Folder -->"
+# label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
+# label.pack(side="left", padx=(15, 1), pady=10)
 
 # Create the "Browse" button
 browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,10), pady=10)
 
-# Load Zip file
-browse_button = ttk.Button(top_button_frame, text="Extract", command=browse_zip, style="Custom.TButton")
+# Extract Zip file button
+browse_button = ttk.Button(top_button_frame, text="Extract ZIP", command=browse_zip, style="Custom.TButton")
+browse_button.pack(side="left", padx=(1,10), pady=10)
+
+# Extract TGZ file button
+browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,15), pady=10)
 
 # Create a separator widget
@@ -534,6 +602,10 @@ review_button.pack(side="left", padx=10, pady=10)
 # Configure the button style
 style = ttk.Style()
 style.configure("Custom.TButton", foreground="black", background="white", font=("Arial", 10))
+
+matching_text.insert(tk.END, "Welcome to VMparser!" "\n\n")
+matching_text.insert(tk.END, "You can start by Extracting your ZIP/TGZ file or Browse to an already extracted bundle "
+                             "folder" "\n\n")
 
 # Start the main loop
 root.mainloop()
