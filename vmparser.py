@@ -11,7 +11,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.2"
+BUILDVER = "0.5.3"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -385,75 +385,24 @@ def browse_zip():
 
     if not os.path.exists(extract_path):
         os.makedirs(extract_path)
+        messagebox.showinfo("Folder Created", f"Created folder at {extract_path}")
 
-    # Create new Toplevel window
-    progress_window = tk.Toplevel(root)
-    progress_window.title("Extraction Progress")
+    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_path)
 
-    # Progressbar widget
-    progress = ttk.Progressbar(progress_window, orient="horizontal", length=200, mode="determinate")
-    progress.pack()
-
-    try:
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_path)
-
-        extracted_folders = next(os.walk(extract_path))[1]
-        if not extracted_folders:
-            print("No directories found inside the extract path.")
-            return
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-        return
-    finally:
-        progress_window.destroy()
-
-    selected_folder_path = os.path.join(extract_path, extracted_folders[0])  # Considering the first folder
-
-    for file in os.listdir(selected_folder_path):
+    for file in os.listdir(extract_path):
         if file.endswith('.tgz'):
-            with tarfile.open(os.path.join(selected_folder_path, file), errorlevel=1) as tar_ref:
+            with tarfile.open(os.path.join(extract_path, file), errorlevel=1) as tar_ref:
                 members = tar_ref.getmembers()
                 for i, member in enumerate(members):
                     try:
                         member.name = member.name.replace(':', '_')  # Replace colons with underscore
-                        tar_ref.extract(member, path=selected_folder_path)
-                        update_progress(progress, i + 1, len(members))
+                        tar_ref.extract(member, path=extract_path)
+                        update_progress(progress, i+1, len(members))
                     except Exception as e:
                         print(f"Could not extract {member.name} due to {str(e)}")
 
-    matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, "Selected folder path: " + selected_folder_path + "\n\n")
-
-    # You can store the path in a variable for later use
-    global extracted_folder_path
-    extracted_folder_path = selected_folder_path
-    vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
-    profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
-
-    try:
-        with open(vm_version_path, 'r') as vm_version_file:
-            vm_version_content = vm_version_file.read()
-        matching_text.insert(tk.END, "Discovered VMware Build:\n")
-        matching_text.insert(tk.END, vm_version_content)
-        global vmware_version
-        vmware_version = vm_version_content
-
-    except FileNotFoundError:
-        matching_text.insert(tk.END, "VM Version file not found.")
-
-        try:
-            with open(profile_path, 'r') as profile_file:
-                for line in profile_file:
-                    if "Name:" in line:
-                        name = line.strip().split(" ", 1)[1]
-                        matching_text.insert(tk.END, "\n")
-                        matching_text.insert(tk.END, "Image: " + name)
-                        break
-        except FileNotFoundError:
-            matching_text.insert(tk.END, "\n\nCustom Image not found.")
-
-    messagebox.showinfo("Success", f"Files extracted successfully to {selected_folder_path}")
+    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
 
 
 # Create Window
@@ -474,6 +423,10 @@ matching_text.config(yscrollcommand=scrollbar.set)
 # Create the bottom button row
 top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
+
+# Progressbar widget
+progress = ttk.Progressbar(root, orient="horizontal", length=200)
+progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 
 # Create the label
 label_text = "Browse to Extracted Folder -->"
