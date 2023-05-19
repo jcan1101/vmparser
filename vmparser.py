@@ -1,15 +1,17 @@
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import filedialog, ttk, messagebox
 import os
 from tabulate import tabulate
 import subprocess
 import gzip
+import zipfile
+import tarfile
 
 
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.1"
+BUILDVER = "0.5.2"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -109,21 +111,34 @@ def storage_info():
     nvme_info = selected_folder_path + "/commands/localcli_nvme-namespace-list.txt"
     storage_file_path = "Review/storage.txt"
 
-    # Read the contents of adapters_path
-    with open(adapters_path, 'r') as adapters_file:
-        adapters_content = adapters_file.read()
+    adapters_content = ""
+    disk_volume_lines = []
+    storage_disks_lines = []
+    nvme_content = ""
 
-    # Read the contents of disk_volume_path
-    with open(disk_volume_path, 'r') as disk_volume_file:
-        disk_volume_lines = disk_volume_file.readlines()
+    try:
+        with open(adapters_path, 'r') as adapters_file:
+            adapters_content = adapters_file.read()
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "Adapters file not found.\n")
 
-    # Read the contents of storage_disks
-    with open(storage_disks, 'r') as storage_disks_file:
-        storage_disks_lines = storage_disks_file.readlines()
+    try:
+        with open(disk_volume_path, 'r') as disk_volume_file:
+            disk_volume_lines = disk_volume_file.readlines()
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "Disk volume file not found.\n")
 
-    # Read the contents of nvme_info
-    with open(nvme_info, 'r') as nvme_file:
-        nvme_content = nvme_file.read()
+    try:
+        with open(storage_disks, 'r') as storage_disks_file:
+            storage_disks_lines = storage_disks_file.readlines()
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "Storage disks file not found.\n")
+
+    try:
+        with open(nvme_info, 'r') as nvme_file:
+            nvme_content = nvme_file.read()
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "NVMe info file not found.\n")
 
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
@@ -355,6 +370,92 @@ def vsan_disk_info():
         matching_text.insert(tk.END, "File not found: " + file_path)
 
 
+def update_progress(progressbar, value, maximum):
+    progressbar["value"] = value
+    progressbar["maximum"] = maximum
+    progressbar.update()
+
+
+def browse_zip():
+    file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
+    if not file_path:
+        return
+
+    extract_path = os.path.join(os.getcwd(), 'Extracted')
+
+    if not os.path.exists(extract_path):
+        os.makedirs(extract_path)
+
+    # Create new Toplevel window
+    progress_window = tk.Toplevel(root)
+    progress_window.title("Extraction Progress")
+
+    # Progressbar widget
+    progress = ttk.Progressbar(progress_window, orient="horizontal", length=200, mode="determinate")
+    progress.pack()
+
+    try:
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_path)
+
+        extracted_folders = next(os.walk(extract_path))[1]
+        if not extracted_folders:
+            print("No directories found inside the extract path.")
+            return
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        return
+    finally:
+        progress_window.destroy()
+
+    selected_folder_path = os.path.join(extract_path, extracted_folders[0])  # Considering the first folder
+
+    for file in os.listdir(selected_folder_path):
+        if file.endswith('.tgz'):
+            with tarfile.open(os.path.join(selected_folder_path, file), errorlevel=1) as tar_ref:
+                members = tar_ref.getmembers()
+                for i, member in enumerate(members):
+                    try:
+                        member.name = member.name.replace(':', '_')  # Replace colons with underscore
+                        tar_ref.extract(member, path=selected_folder_path)
+                        update_progress(progress, i + 1, len(members))
+                    except Exception as e:
+                        print(f"Could not extract {member.name} due to {str(e)}")
+
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Selected folder path: " + selected_folder_path + "\n\n")
+
+    # You can store the path in a variable for later use
+    global extracted_folder_path
+    extracted_folder_path = selected_folder_path
+    vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+    profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+    try:
+        with open(vm_version_path, 'r') as vm_version_file:
+            vm_version_content = vm_version_file.read()
+        matching_text.insert(tk.END, "Discovered VMware Build:\n")
+        matching_text.insert(tk.END, vm_version_content)
+        global vmware_version
+        vmware_version = vm_version_content
+
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "VM Version file not found.")
+
+        try:
+            with open(profile_path, 'r') as profile_file:
+                for line in profile_file:
+                    if "Name:" in line:
+                        name = line.strip().split(" ", 1)[1]
+                        matching_text.insert(tk.END, "\n")
+                        matching_text.insert(tk.END, "Image: " + name)
+                        break
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "\n\nCustom Image not found.")
+
+    messagebox.showinfo("Success", f"Files extracted successfully to {selected_folder_path}")
+
+
 # Create Window
 root = tk.Tk()
 
@@ -365,13 +466,12 @@ root.title("VM Log Parser  " + BUILDVER)
 matching_text = tk.Text(root, height=50, width=220, background="light gray")
 matching_text.grid(row=0, column=0, padx=10, pady=10)
 
-
 # Create a vertical scroll bar
 scrollbar = tk.Scrollbar(root, command=matching_text.yview)
 scrollbar.grid(row=0, column=1, sticky='ns')
 matching_text.config(yscrollcommand=scrollbar.set)
 
-# Create the top button row
+# Create the bottom button row
 top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 
@@ -382,11 +482,15 @@ label.pack(side="left", padx=(15, 1), pady=10)
 
 # Create the "Browse" button
 browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,150), pady=10)
+browse_button.pack(side="left", padx=(1,10), pady=10)
+
+# Load Zip file
+browse_button = ttk.Button(top_button_frame, text="Extract", command=browse_zip, style="Custom.TButton")
+browse_button.pack(side="left", padx=(1,15), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
-separator.pack(side="left", padx=5, pady=10)
+separator.pack(side="left", padx=55, pady=10)
 
 # Create the "Drivers" button
 driver_button = ttk.Button(top_button_frame, text="Drivers", command=driver_info, style="Custom.TButton")
