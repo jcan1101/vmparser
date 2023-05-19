@@ -11,7 +11,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.3"
+BUILDVER = "0.5.4"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -26,8 +26,8 @@ else:
 
 
 def driver_info():
-    module_file_path = selected_folder_path + "/commands/esxcfg-module_-q.txt"
-    vib_file_path = selected_folder_path + "/commands/localcli_software-vib-list.txt"
+    module_file_path = os.path.join(selected_folder_path, "commands", "esxcfg-module_-q.txt")
+    vib_file_path = os.path.join(selected_folder_path, "commands", "localcli_software-vib-list.txt")
     driver_file_path = "Review/drivers.txt"
 
     matching_lines = []
@@ -299,8 +299,6 @@ def show_filtered_logs():
     # matching_text.delete(1.0, tk.END)
     # matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
 
-# End of Button contents ---------------------------------------------------#
-
 
 def boot_log_info():
     file_path = selected_folder_path + "/var/run/log/vmksummary.log"
@@ -385,10 +383,19 @@ def browse_zip():
 
     if not os.path.exists(extract_path):
         os.makedirs(extract_path)
-        messagebox.showinfo("Folder Created", f"Created folder at {extract_path}")
+
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Extracting .zip file...\n")
 
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
-        zip_ref.extractall(extract_path)
+        members = zip_ref.namelist()
+        total_members = len(members)
+        for i, member in enumerate(members):
+            with open(os.path.join(extract_path, member), 'wb') as f_out:
+                f_out.write(zip_ref.read(member))
+            update_progress(progress, i + 1, total_members)
+
+        matching_text.insert(tk.END, "Extracted .zip, now extracting .tgz\n\n")
 
     for file in os.listdir(extract_path):
         if file.endswith('.tgz'):
@@ -403,6 +410,50 @@ def browse_zip():
                         print(f"Could not extract {member.name} due to {str(e)}")
 
     messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
+    # matching_text.insert(tk.END, "Files extracted to" + extract_path + "\n\n")
+
+    # List all directories under the extraction path
+    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
+
+    global selected_folder_path
+
+    # Check if there are any directories in the list
+    if extracted_dirs:
+        # In this example, I'm assuming you want the first directory. Change this if needed.
+        selected_folder_path = os.path.join(extract_path, extracted_dirs[0])
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Extracted folder path is: " + selected_folder_path + "\n\n")
+    else:
+        matching_text.insert(tk.END, "No directories found inside the extracted path.")
+        return
+
+    vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+    profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+    try:
+        with open(vm_version_path, 'r') as vm_version_file:
+            vm_version_content = vm_version_file.read()
+        matching_text.insert(tk.END, "Discovered VMware Build:\n")
+        matching_text.insert(tk.END, vm_version_content)
+        global vmware_version
+        vmware_version = vm_version_content
+
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "VM Version file not found.")
+
+    try:
+        with open(profile_path, 'r') as profile_file:
+            for line in profile_file:
+                if "Name:" in line:
+                    name = line.strip().split(" ", 1)[1]
+                    matching_text.insert(tk.END, "\n")
+                    matching_text.insert(tk.END, "Image: " + name)
+                    break
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "\n\nCustom Image not found.")
+
+
+# End of Button contents ---------------------------------------------------#
 
 
 # Create Window
