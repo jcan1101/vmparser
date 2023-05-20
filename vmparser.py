@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
-import os
 from tabulate import tabulate
+import os
 import subprocess
 import gzip
 import zipfile
@@ -11,7 +11,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.6"
+BUILDVER = "0.5.7"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -373,8 +373,10 @@ def update_progress(progressbar, value, maximum):
     progressbar.update()
 
 
-def browse_zip():
-    file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
+def extract_zip(file_path):
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
+ #   file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
     if not file_path:
         return
 
@@ -383,7 +385,6 @@ def browse_zip():
     if not os.path.exists(extract_path):
         os.makedirs(extract_path)
 
-    matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Extracting .zip file...\n")
 
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
@@ -408,7 +409,7 @@ def browse_zip():
                     except Exception as e:
                         print(f"Could not extract {member.name} due to {str(e)}")
 
-    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
+    # messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
     # matching_text.insert(tk.END, "Files extracted to" + extract_path + "\n\n")
 
     # List all directories under the extraction path
@@ -452,8 +453,12 @@ def browse_zip():
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
-def browse_tgz():
-    file_path = filedialog.askopenfilename(filetypes=(("Tgz Files", "*.tgz"),))
+def extract_tgz(file_path):
+
+    # Display file path
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
+#    file_path = filedialog.askopenfilename(filetypes=(("Tgz Files", "*.tgz"),))
     if not file_path:
         return
 
@@ -462,7 +467,6 @@ def browse_tgz():
     if not os.path.exists(extract_path):
         os.makedirs(extract_path)
 
-    matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Extracting .tgz file...\n")
 
     with tarfile.open(file_path, 'r') as tar_ref:
@@ -477,7 +481,7 @@ def browse_tgz():
 
     matching_text.insert(tk.END, "Extracted .tgz file.\n\n")
 
-    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
+#    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
 
     extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
 
@@ -516,6 +520,22 @@ def browse_tgz():
     except FileNotFoundError:
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
+def browse_file():
+    # Open a file dialog and ask the user to select a .zip or .tgz file
+    file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"), ("Tgz Files", "*.tgz"),))
+
+    # Return if no file was selected
+    if not file_path:
+        return
+
+    # Get the extension of the selected file
+    _, file_extension = os.path.splitext(file_path)
+
+    # Based on the file extension, call the appropriate function
+    if file_extension == '.zip':
+        extract_zip(file_path)
+    elif file_extension == '.tgz':
+        extract_tgz(file_path)
 
 # End of Button contents ---------------------------------------------------#
 
@@ -549,16 +569,16 @@ progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 # label.pack(side="left", padx=(15, 1), pady=10)
 
 # Create the "Browse" button
-browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
+browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_file, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,10), pady=10)
 
 # Extract Zip file button
-browse_button = ttk.Button(top_button_frame, text="Extract ZIP", command=browse_zip, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,10), pady=10)
+# browse_button = ttk.Button(top_button_frame, text="Extract ZIP", command=browse_zip, style="Custom.TButton")
+# browse_button.pack(side="left", padx=(1,10), pady=10)
 
 # Extract TGZ file button
-browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,15), pady=10)
+# browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
+# browse_button.pack(side="left", padx=(1,15), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")

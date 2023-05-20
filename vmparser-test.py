@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, ttk, messagebox
-import os
 from tabulate import tabulate
+import os
 import subprocess
 import gzip
 import zipfile
@@ -11,7 +11,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.2"
+BUILDVER = "0.5.6"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -26,8 +26,8 @@ else:
 
 
 def driver_info():
-    module_file_path = selected_folder_path + "/commands/esxcfg-module_-q.txt"
-    vib_file_path = selected_folder_path + "/commands/localcli_software-vib-list.txt"
+    module_file_path = os.path.join(selected_folder_path, "commands", "esxcfg-module_-q.txt")
+    vib_file_path = os.path.join(selected_folder_path, "commands", "localcli_software-vib-list.txt")
     driver_file_path = "Review/drivers.txt"
 
     matching_lines = []
@@ -168,7 +168,6 @@ def storage_info():
         "",
     ]
 
-
     # Read the contents of disk_volume_path
     with open(disk_volume_path, 'r') as disk_volume_file:
         disk_volume_lines = disk_volume_file.readlines()
@@ -299,8 +298,6 @@ def show_filtered_logs():
     # matching_text.delete(1.0, tk.END)
     # matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
 
-# End of Button contents ---------------------------------------------------#
-
 
 def boot_log_info():
     file_path = selected_folder_path + "/var/run/log/vmksummary.log"
@@ -376,8 +373,10 @@ def update_progress(progressbar, value, maximum):
     progressbar.update()
 
 
-def browse_zip():
-    file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
+def extract_zip(file_path):
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
+ #   file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
     if not file_path:
         return
 
@@ -386,48 +385,48 @@ def browse_zip():
     if not os.path.exists(extract_path):
         os.makedirs(extract_path)
 
-    # Create new Toplevel window
-    progress_window = tk.Toplevel(root)
-    progress_window.title("Extraction Progress")
+    matching_text.insert(tk.END, "Extracting .zip file...\n")
 
-    # Progressbar widget
-    progress = ttk.Progressbar(progress_window, orient="horizontal", length=200, mode="determinate")
-    progress.pack()
+    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+        members = zip_ref.namelist()
+        total_members = len(members)
+        for i, member in enumerate(members):
+            with open(os.path.join(extract_path, member), 'wb') as f_out:
+                f_out.write(zip_ref.read(member))
+            update_progress(progress, i + 1, total_members)
 
-    try:
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_path)
+        matching_text.insert(tk.END, "Extracted .zip, now extracting .tgz\n\n")
 
-        extracted_folders = next(os.walk(extract_path))[1]
-        if not extracted_folders:
-            print("No directories found inside the extract path.")
-            return
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-        return
-    finally:
-        progress_window.destroy()
-
-    selected_folder_path = os.path.join(extract_path, extracted_folders[0])  # Considering the first folder
-
-    for file in os.listdir(selected_folder_path):
+    for file in os.listdir(extract_path):
         if file.endswith('.tgz'):
-            with tarfile.open(os.path.join(selected_folder_path, file), errorlevel=1) as tar_ref:
+            with tarfile.open(os.path.join(extract_path, file), errorlevel=1) as tar_ref:
                 members = tar_ref.getmembers()
                 for i, member in enumerate(members):
                     try:
                         member.name = member.name.replace(':', '_')  # Replace colons with underscore
-                        tar_ref.extract(member, path=selected_folder_path)
-                        update_progress(progress, i + 1, len(members))
+                        tar_ref.extract(member, path=extract_path)
+                        update_progress(progress, i+1, len(members))
                     except Exception as e:
                         print(f"Could not extract {member.name} due to {str(e)}")
 
-    matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, "Selected folder path: " + selected_folder_path + "\n\n")
+    # messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
+    # matching_text.insert(tk.END, "Files extracted to" + extract_path + "\n\n")
 
-    # You can store the path in a variable for later use
-    global extracted_folder_path
-    extracted_folder_path = selected_folder_path
+    # List all directories under the extraction path
+    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
+
+    global selected_folder_path
+
+    # Check if there are any directories in the list
+    if extracted_dirs:
+        # In this example, I'm assuming you want the first directory. Change this if needed.
+        selected_folder_path = os.path.join(extract_path, extracted_dirs[0])
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Extracted folder path is: " + selected_folder_path + "\n\n")
+    else:
+        matching_text.insert(tk.END, "No directories found inside the extracted path.")
+        return
+
     vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
     profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
 
@@ -442,18 +441,103 @@ def browse_zip():
     except FileNotFoundError:
         matching_text.insert(tk.END, "VM Version file not found.")
 
-        try:
-            with open(profile_path, 'r') as profile_file:
-                for line in profile_file:
-                    if "Name:" in line:
-                        name = line.strip().split(" ", 1)[1]
-                        matching_text.insert(tk.END, "\n")
-                        matching_text.insert(tk.END, "Image: " + name)
-                        break
-        except FileNotFoundError:
-            matching_text.insert(tk.END, "\n\nCustom Image not found.")
+    try:
+        with open(profile_path, 'r') as profile_file:
+            for line in profile_file:
+                if "Name:" in line:
+                    name = line.strip().split(" ", 1)[1]
+                    matching_text.insert(tk.END, "\n")
+                    matching_text.insert(tk.END, "Image: " + name)
+                    break
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
-    messagebox.showinfo("Success", f"Files extracted successfully to {selected_folder_path}")
+
+def extract_tgz(file_path):
+
+    # Display file path
+    matching_text.delete(1.0, tk.END)
+    matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
+#    file_path = filedialog.askopenfilename(filetypes=(("Tgz Files", "*.tgz"),))
+    if not file_path:
+        return
+
+    extract_path = os.path.join(os.getcwd(), 'Extracted')
+
+    if not os.path.exists(extract_path):
+        os.makedirs(extract_path)
+
+    matching_text.insert(tk.END, "Extracting .tgz file...\n")
+
+    with tarfile.open(file_path, 'r') as tar_ref:
+        members = tar_ref.getmembers()
+        for i, member in enumerate(members):
+            try:
+                member.name = member.name.replace(':', '_')  # Replace colons with underscore
+                tar_ref.extract(member, path=extract_path)
+                update_progress(progress, i+1, len(members))
+            except Exception as e:
+                print(f"Could not extract {member.name} due to {str(e)}")
+
+    matching_text.insert(tk.END, "Extracted .tgz file.\n\n")
+
+#    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
+
+    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
+
+    global selected_folder_path
+
+    if extracted_dirs:
+        selected_folder_path = os.path.join(extract_path, extracted_dirs[0])
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Extracted folder path is: " + selected_folder_path + "\n\n")
+    else:
+        matching_text.insert(tk.END, "No directories found inside the extracted path.")
+        return
+
+    vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+    profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+    try:
+        with open(vm_version_path, 'r') as vm_version_file:
+            vm_version_content = vm_version_file.read()
+        matching_text.insert(tk.END, "Discovered VMware Build:\n")
+        matching_text.insert(tk.END, vm_version_content)
+        global vmware_version
+        vmware_version = vm_version_content
+
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "VM Version file not found.")
+
+    try:
+        with open(profile_path, 'r') as profile_file:
+            for line in profile_file:
+                if "Name:" in line:
+                    name = line.strip().split(" ", 1)[1]
+                    matching_text.insert(tk.END, "\n")
+                    matching_text.insert(tk.END, "Image: " + name)
+                    break
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "\n\nCustom Image not found.")
+
+def browse_file():
+    # Open a file dialog and ask the user to select a .zip or .tgz file
+    file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"), ("Tgz Files", "*.tgz"),))
+
+    # Return if no file was selected
+    if not file_path:
+        return
+
+    # Get the extension of the selected file
+    _, file_extension = os.path.splitext(file_path)
+
+    # Based on the file extension, call the appropriate function
+    if file_extension == '.zip':
+        extract_zip(file_path)
+    elif file_extension == '.tgz':
+        extract_tgz(file_path)
+
+# End of Button contents ---------------------------------------------------#
 
 
 # Create Window
@@ -475,18 +559,26 @@ matching_text.config(yscrollcommand=scrollbar.set)
 top_button_frame = tk.Frame(root)
 top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 
+# Progressbar widget
+progress = ttk.Progressbar(root, orient="horizontal", length=200)
+progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
+
 # Create the label
-label_text = "Browse to Extracted Folder -->"
-label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
-label.pack(side="left", padx=(15, 1), pady=10)
+# label_text = "Browse to Extracted Folder -->"
+# label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
+# label.pack(side="left", padx=(15, 1), pady=10)
 
 # Create the "Browse" button
-browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
+browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_file, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,10), pady=10)
 
-# Load Zip file
-browse_button = ttk.Button(top_button_frame, text="Extract", command=browse_zip, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,15), pady=10)
+# Extract Zip file button
+# browse_button = ttk.Button(top_button_frame, text="Extract ZIP", command=browse_zip, style="Custom.TButton")
+# browse_button.pack(side="left", padx=(1,10), pady=10)
+
+# Extract TGZ file button
+# browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
+# browse_button.pack(side="left", padx=(1,15), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
@@ -530,6 +622,10 @@ review_button.pack(side="left", padx=10, pady=10)
 # Configure the button style
 style = ttk.Style()
 style.configure("Custom.TButton", foreground="black", background="white", font=("Arial", 10))
+
+matching_text.insert(tk.END, "Welcome to VMparser!" "\n\n")
+matching_text.insert(tk.END, "You can start by Extracting your ZIP/TGZ file or Browse to an already extracted bundle "
+                             "folder" "\n\n")
 
 # Start the main loop
 root.mainloop()
