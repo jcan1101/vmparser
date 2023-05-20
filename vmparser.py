@@ -7,11 +7,10 @@ import gzip
 import zipfile
 import tarfile
 
-
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.7"
+BUILDVER = "0.5.8"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -208,44 +207,6 @@ def storage_info():
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
-
-
-# Browse to vmbundle folder
-def browse_folder():
-    folder_path = filedialog.askdirectory()
-    if folder_path:
-        # Do something with the selected folder path
-        matching_text.delete(1.0, tk.END)
-        matching_text.insert(tk.END, "Selected folder path: " + folder_path + "\n\n")
-
-        # You can store the path in a variable for later use
-        global selected_folder_path
-        selected_folder_path = folder_path
-        vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
-        profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
-
-        try:
-            with open(vm_version_path, 'r') as vm_version_file:
-                vm_version_content = vm_version_file.read()
-            matching_text.insert(tk.END, "Discovered VMware Build:\n")
-            matching_text.insert(tk.END, vm_version_content)
-            global vmware_version
-            vmware_version = vm_version_content
-
-        except FileNotFoundError:
-            matching_text.insert(tk.END, "VM Version file not found.")
-
-        try:
-            with open(profile_path, 'r') as profile_file:
-                for line in profile_file:
-                    if "Name:" in line:
-                        name = line.strip().split(" ", 1)[1]
-                        matching_text.insert(tk.END, "\n")
-                        matching_text.insert(tk.END, "Image: " + name)
-                        break
-        except FileNotFoundError:
-            matching_text.insert(tk.END, "\n\nCustom Image not found.")
-
 
 # Open Review Folder
 def open_folder_explorer():
@@ -520,6 +481,7 @@ def extract_tgz(file_path):
     except FileNotFoundError:
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
+
 def browse_file():
     # Open a file dialog and ask the user to select a .zip or .tgz file
     file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"), ("Tgz Files", "*.tgz"),))
@@ -536,6 +498,43 @@ def browse_file():
         extract_zip(file_path)
     elif file_extension == '.tgz':
         extract_tgz(file_path)
+
+
+# Browse to vmbundle folder
+def browse_folder():
+    folder_path = filedialog.askdirectory()
+    if folder_path:
+        # Do something with the selected folder path
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Selected folder path: " + folder_path + "\n\n")
+
+        # You can store the path in a variable for later use
+        global selected_folder_path
+        selected_folder_path = folder_path
+        vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+        profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+        try:
+            with open(vm_version_path, 'r') as vm_version_file:
+                vm_version_content = vm_version_file.read()
+            matching_text.insert(tk.END, "Discovered VMware Build:\n")
+            matching_text.insert(tk.END, vm_version_content)
+            global vmware_version
+            vmware_version = vm_version_content
+
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "VM Version file not found.")
+
+        try:
+            with open(profile_path, 'r') as profile_file:
+                for line in profile_file:
+                    if "Name:" in line:
+                        name = line.strip().split(" ", 1)[1]
+                        matching_text.insert(tk.END, "\n")
+                        matching_text.insert(tk.END, "Image: " + name)
+                        break
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 # End of Button contents ---------------------------------------------------#
 
@@ -569,12 +568,12 @@ progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 # label.pack(side="left", padx=(15, 1), pady=10)
 
 # Create the "Browse" button
-browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_file, style="Custom.TButton")
+browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,10), pady=10)
 
 # Extract Zip file button
-# browse_button = ttk.Button(top_button_frame, text="Extract ZIP", command=browse_zip, style="Custom.TButton")
-# browse_button.pack(side="left", padx=(1,10), pady=10)
+browse_button = ttk.Button(top_button_frame, text="Extract Bundle", command=browse_file, style="Custom.TButton")
+browse_button.pack(side="left", padx=(1,10), pady=10)
 
 # Extract TGZ file button
 # browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
