@@ -148,8 +148,8 @@ def storage_info():
 
     # Custom lines of text to be displayed above the storage disks' content
     custom_header_storage_disks = [
-        "=== Physical Disks ===",
-        "----------------------",
+        "=== Physical Disk Path ===",
+        "---------------------------",
         "",
     ]
 
