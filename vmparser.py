@@ -10,7 +10,8 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.6.3"
+# Track build version
+BUILDVER = "0.6.4"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -23,14 +24,19 @@ if not os.path.exists(export_path):
 else:
     print(f"Parsed files will be stored in '{export_path}' Folder.")
 
+# -----------------------------------------------------------------------------------------------------
+#   Start of Functions
+# -----------------------------------------------------------------------------------------------------
 
+
+# Display driver info
 def driver_info():
     module_file_path = os.path.join(selected_folder_path, "commands", "esxcfg-module_-q.txt")
     vib_file_path = os.path.join(selected_folder_path, "commands", "localcli_software-vib-list.txt")
     driver_file_path = "Review/drivers.txt"
 
     matching_lines = []
-
+    del_lines = []
 
 # -----------------------------------------------------------------------------------------------------
 #       Read the contents of module file and replace "_" with "-"
@@ -44,17 +50,23 @@ def driver_info():
         for line in vib_file:
             if any(esx_line in line for esx_line in esx_lines):
                 matching_lines.append(line.strip())
+            if "DEL" in line:
+                del_lines.append(line.strip())
 
     # Display the matching lines in the window
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + vmware_version + "\n")
     matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
+    matching_text.insert(tk.END, "\n\nDell Packages Installed:\n" + "-------------------------\n" + "\n".join(del_lines))
 
     # Save the matching lines to the output file
     with open(driver_file_path, 'w') as output_file:
         output_file.write("Drivers in use: \n" + "\n".join(matching_lines))
+        output_file.write("\n\nDell Packages Installed: \n" + "\n".join(del_lines))
+# -----------------------------------------------------------------------------------------------------
 
 
+# Display Network files
 def network_info():
     network_file_path = "Review/network.txt"
     nicinfo_file = selected_folder_path + "/commands/nicinfo.sh.txt"
@@ -122,6 +134,7 @@ def network_info():
 # -----------------------------------------------------------------------------------------------------
 
 
+# Display storage files
 def storage_info():
     adapters_path = selected_folder_path + "/commands/localcli_storage-core-adapter-list.txt"
     disk_volume_path = selected_folder_path + "/commands/df.txt"
@@ -283,6 +296,7 @@ def open_folder_explorer():
     folder_path = os.path.join(os.getcwd(), "Review")
     # Use the 'explorer' command in Windows to open the folder in File Explorer
     subprocess.Popen(f'explorer "{folder_path}"')
+# -----------------------------------------------------------------------------------------------------
 
 
 # Show vmkernel logs
@@ -322,13 +336,10 @@ def show_filtered_logs():
     else:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
-
-# Show version Info
-# def version_show_info():
-    # matching_text.delete(1.0, tk.END)
-    # matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
+# -----------------------------------------------------------------------------------------------------
 
 
+# Show vmksummary boot info
 def boot_log_info():
     file_path = selected_folder_path + "/var/run/log/vmksummary.log"
 
@@ -346,8 +357,10 @@ def boot_log_info():
     except FileNotFoundError:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "File not found: " + file_path)
+# -----------------------------------------------------------------------------------------------------
 
 
+# Display vsan disk files
 def vsan_disk_info():
     file_path = selected_folder_path + "/commands/vdq_-q--H.txt"
     output_file_path = "Review/vsan_output.txt"
@@ -434,12 +447,15 @@ def vsan_disk_info():
     except FileNotFoundError:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "File not found: " + file_path)
+# -----------------------------------------------------------------------------------------------------
 
 
+# Setup progress bar widget
 def update_progress(progressbar, value, maximum):
     progressbar["value"] = value
     progressbar["maximum"] = maximum
     progressbar.update()
+# -----------------------------------------------------------------------------------------------------
 
 
 # Extract ZIP file
@@ -521,6 +537,7 @@ def extract_zip(file_path):
                     break
     except FileNotFoundError:
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
+# -----------------------------------------------------------------------------------------------------
 
 
 # Extract TGZ file
@@ -590,6 +607,7 @@ def extract_tgz(file_path):
                     break
     except FileNotFoundError:
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
+# -----------------------------------------------------------------------------------------------------
 
 
 # chose a ZIP or TGZ file to extract
@@ -609,6 +627,7 @@ def browse_file():
         extract_zip(file_path)
     elif file_extension == '.tgz':
         extract_tgz(file_path)
+# -----------------------------------------------------------------------------------------------------
 
 
 # Browse to vmbundle folder
@@ -646,8 +665,10 @@ def browse_folder():
                         break
         except FileNotFoundError:
             matching_text.insert(tk.END, "\n\nCustom Image not found.")
+# -----------------------------------------------------------------------------------------------------
 
-# End of Button contents ---------------------------------------------------#
+
+# ----------------------  End of Functions --------------------------------#
 
 
 # Create Window
@@ -673,7 +694,7 @@ top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 progress = ttk.Progressbar(root, orient="horizontal", length=200)
 progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 
-# Create the label
+# Create the Text label
 # label_text = "Browse to Extracted Folder -->"
 # label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
 # label.pack(side="left", padx=(15, 1), pady=10)
@@ -685,10 +706,6 @@ browse_button.pack(side="left", padx=(1,10), pady=10)
 # Extract Zip file button
 browse_button = ttk.Button(top_button_frame, text="Extract Bundle", command=browse_file, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,10), pady=10)
-
-# Extract TGZ file button
-# browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
-# browse_button.pack(side="left", padx=(1,15), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
@@ -719,7 +736,7 @@ show_logs_button = ttk.Button(top_button_frame, text="Show Logs", command=show_f
 show_logs_button.pack(side="left", padx=5, pady=10)
 
 # Create the filter entry box
-filter_entry = tk.Entry(top_button_frame, width=20)
+filter_entry = tk.Entry(top_button_frame, width=40)
 filter_entry.pack(side="left", padx=5, pady=10)
 
 # Bind the <Return> event to the filter entry box
