@@ -10,7 +10,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.8"
+BUILDVER = "0.5.9"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -334,6 +334,7 @@ def update_progress(progressbar, value, maximum):
     progressbar.update()
 
 
+# Extract ZIP file
 def extract_zip(file_path):
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
@@ -414,6 +415,7 @@ def extract_zip(file_path):
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
+# Extract TGZ file
 def extract_tgz(file_path):
 
     # Display file path
@@ -482,6 +484,7 @@ def extract_tgz(file_path):
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
+# chose a ZIP or TGZ file to extract
 def browse_file():
     # Open a file dialog and ask the user to select a .zip or .tgz file
     file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"), ("Tgz Files", "*.tgz"),))
