@@ -57,47 +57,45 @@ def network_info():
     vswitch_file = selected_folder_path + "/commands/esxcfg-vswitch_-l.txt"
     vmknic_file = selected_folder_path + "/commands/esxcfg-vmknic_-l.txt"
 
+    matching_text.tag_configure("bold", font=("Arial", 10, "bold"))
+    matching_text.delete(1.0, tk.END)
+
     try:
         with open(nicinfo_file, 'r') as file:
             lines = file.readlines()
-            matching_lines = []
             for line in lines:
                 if 'NIC:' in line:
                     break
-                matching_lines.append(line.strip())
+                matching_text.insert(tk.END, line.strip() + "\n")
 
         with open(vmknic_file, 'r') as file:
-            matching_lines.append("                       ")
-            matching_lines.append("VM Kernel Port Info:")
-            matching_text.insert(tk.END, "VM Kernel Port Info:\n")
-            matching_lines.append("_______________________")
-            matching_lines.append("")
+            matching_text.insert(tk.END, "----------------------\n")
+            matching_text.insert(tk.END, "    VM Kernel Port Info:       |\n", "bold")
+            matching_text.insert(tk.END, "----------------------\n\n")
             lines = file.readlines()
             for line in lines:
-                matching_lines.append(line.strip())
-                matching_lines.append("--------------------------------------------------------------------------"
-                                      "--------------------------------------------------------------------------"
-                                      "-------------------------------------------------------------")
+                matching_text.insert(tk.END, line.strip() + "\n")
+                matching_text.insert(tk.END, "---------------------------------------------------\n")
 
         with open(vswitch_file, 'r') as file:
-            matching_lines.append("")
-            matching_lines.append("                       ")
-            matching_lines.append("vSwitch Info:")
-            matching_lines.append("_______________________")
-            matching_lines.append("")
-            lines = file.readlines()
-            for line in lines:
-                matching_lines.append(line.strip())
-                matching_lines.append("--------------------------------------------------------------------------"
-                                      "-------------")
+            matching_text.insert(tk.END, "\n")
+            matching_text.insert(tk.END, "----------------------\n")
+            matching_text.insert(tk.END, "         vSwitch Info:              |\n", "bold")
+            matching_text.insert(tk.END, "----------------------\n\n")
 
-        # Display the matching lines in the window
-        matching_text.delete(1.0, tk.END)
-        matching_text.insert(tk.END, "\n".join(matching_lines))
+            # Read the data into a list of lists
+            data = [line.strip().split() for line in file]
+
+            # Convert the data into a table
+            table = tabulate(data, headers='firstrow', tablefmt='simple')
+
+            # Insert the table into the text widget
+            matching_text.insert(tk.END, table + "\n")
 
         # Save the matching lines to the output file
         with open(network_file_path, 'w') as output_file:
-            output_file.write("\n".join(matching_lines))
+            output_file.write(matching_text.get(1.0, tk.END))
+
     except FileNotFoundError:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "One of the command files not found.")
