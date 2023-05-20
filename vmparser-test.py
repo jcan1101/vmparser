@@ -7,11 +7,10 @@ import gzip
 import zipfile
 import tarfile
 
-
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.6"
+BUILDVER = "0.5.9"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -109,13 +108,18 @@ def storage_info():
     disk_volume_path = selected_folder_path + "/commands/df.txt"
     storage_disks = selected_folder_path + "/commands/localcli_storage-core-path-list.txt"
     nvme_info = selected_folder_path + "/commands/localcli_nvme-namespace-list.txt"
+    disk_info = selected_folder_path + "/commands/localcli_storage-core-device-list.txt"
     storage_file_path = "Review/storage.txt"
 
     adapters_content = ""
     disk_volume_lines = []
     storage_disks_lines = []
+    disk_info_lines = []
     nvme_content = ""
 
+# -----------------------------------------------------------------------------------------------------
+#       Make sure things continue when files aren't seen
+# -----------------------------------------------------------------------------------------------------
     try:
         with open(adapters_path, 'r') as adapters_file:
             adapters_content = adapters_file.read()
@@ -140,6 +144,15 @@ def storage_info():
     except FileNotFoundError:
         matching_text.insert(tk.END, "NVMe info file not found.\n")
 
+    try:
+        with open(disk_info, 'r') as disk_info_file:
+            disk_info_lines = disk_info_file.readlines()
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "Disk info file not found.\n")
+
+# -----------------------------------------------------------------------------------------------------
+#   Creating Headers for the display
+# -----------------------------------------------------------------------------------------------------
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
         "=== Storage Adapters ===",
@@ -149,8 +162,8 @@ def storage_info():
 
     # Custom lines of text to be displayed above the storage disks' content
     custom_header_storage_disks = [
-        "=== Physical Disks ===",
-        "----------------------",
+        "=== Physical Disk Path ===",
+        "---------------------------",
         "",
     ]
 
@@ -168,6 +181,32 @@ def storage_info():
         "",
     ]
 
+    # Custom lines of text to be displayed above the disk_info content
+    custom_header_disk_info = [
+        "=== Disk Info ===",
+        "-----------------",
+        "",
+    ]
+# -----------------------------------------------------------------------------------------------------
+    # Filter the lines based on keywords for disk_info
+
+    disk_info_filtered_lines = []
+    # Specify the keywords to filter
+    disk_keywords = ['Size:', 'Display Name:', 'Vendor', 'Model:', 'Devfs', 'Device Type:', 'Is SSD', 'Is SAS', ]
+
+    # Filter the lines based on keywords
+    filtered_lines = []
+
+    for line in disk_info_lines:
+        if any(line.lstrip().startswith(keyword) for keyword in disk_keywords):
+            disk_info_filtered_lines.append(line)
+            if 'Is SAS:' in line:
+                disk_info_filtered_lines.append(
+                    "-------------------------------------------------------------------------\n")
+
+    # Create disk_info variable with filtered text
+    disk_info_filtered_text = "\n".join(custom_header_disk_info) + "\n" + "\n".join(disk_info_filtered_lines)
+# -----------------------------------------------------------------------------------------------------
     # Read the contents of disk_volume_path
     with open(disk_volume_path, 'r') as disk_volume_file:
         disk_volume_lines = disk_volume_file.readlines()
@@ -194,11 +233,14 @@ def storage_info():
 
     # Concatenate the lines of text with the filtered lines
     filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
-
+# -----------------------------------------------------------------------------------------------------
+#           Display contents of all variables to text window
+# -----------------------------------------------------------------------------------------------------
     # Concatenate the lines of text with the file contents
     display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
                    "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
                    "\n".join(custom_header_nvme_info) + "\n" + nvme_content + "\n\n" + \
+                   disk_info_filtered_text + "\n\n" + \
                    filtered_text
 
     # Display the matching lines in the window
@@ -208,43 +250,7 @@ def storage_info():
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
-
-
-# Browse to vmbundle folder
-def browse_folder():
-    folder_path = filedialog.askdirectory()
-    if folder_path:
-        # Do something with the selected folder path
-        matching_text.delete(1.0, tk.END)
-        matching_text.insert(tk.END, "Selected folder path: " + folder_path + "\n\n")
-
-        # You can store the path in a variable for later use
-        global selected_folder_path
-        selected_folder_path = folder_path
-        vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
-        profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
-
-        try:
-            with open(vm_version_path, 'r') as vm_version_file:
-                vm_version_content = vm_version_file.read()
-            matching_text.insert(tk.END, "Discovered VMware Build:\n")
-            matching_text.insert(tk.END, vm_version_content)
-            global vmware_version
-            vmware_version = vm_version_content
-
-        except FileNotFoundError:
-            matching_text.insert(tk.END, "VM Version file not found.")
-
-        try:
-            with open(profile_path, 'r') as profile_file:
-                for line in profile_file:
-                    if "Name:" in line:
-                        name = line.strip().split(" ", 1)[1]
-                        matching_text.insert(tk.END, "\n")
-                        matching_text.insert(tk.END, "Image: " + name)
-                        break
-        except FileNotFoundError:
-            matching_text.insert(tk.END, "\n\nCustom Image not found.")
+# -----------------------------------------------------------------------------------------------------
 
 
 # Open Review Folder
@@ -373,6 +379,7 @@ def update_progress(progressbar, value, maximum):
     progressbar.update()
 
 
+# Extract ZIP file
 def extract_zip(file_path):
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
@@ -453,6 +460,7 @@ def extract_zip(file_path):
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
+# Extract TGZ file
 def extract_tgz(file_path):
 
     # Display file path
@@ -520,6 +528,8 @@ def extract_tgz(file_path):
     except FileNotFoundError:
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
+
+# chose a ZIP or TGZ file to extract
 def browse_file():
     # Open a file dialog and ask the user to select a .zip or .tgz file
     file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"), ("Tgz Files", "*.tgz"),))
@@ -536,6 +546,43 @@ def browse_file():
         extract_zip(file_path)
     elif file_extension == '.tgz':
         extract_tgz(file_path)
+
+
+# Browse to vmbundle folder
+def browse_folder():
+    folder_path = filedialog.askdirectory()
+    if folder_path:
+        # Do something with the selected folder path
+        matching_text.delete(1.0, tk.END)
+        matching_text.insert(tk.END, "Selected folder path: " + folder_path + "\n\n")
+
+        # You can store the path in a variable for later use
+        global selected_folder_path
+        selected_folder_path = folder_path
+        vm_version_path = selected_folder_path + "/commands/vmware_-vl.txt"
+        profile_path = selected_folder_path + "/commands/localcli_software-profile-get.txt"
+
+        try:
+            with open(vm_version_path, 'r') as vm_version_file:
+                vm_version_content = vm_version_file.read()
+            matching_text.insert(tk.END, "Discovered VMware Build:\n")
+            matching_text.insert(tk.END, vm_version_content)
+            global vmware_version
+            vmware_version = vm_version_content
+
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "VM Version file not found.")
+
+        try:
+            with open(profile_path, 'r') as profile_file:
+                for line in profile_file:
+                    if "Name:" in line:
+                        name = line.strip().split(" ", 1)[1]
+                        matching_text.insert(tk.END, "\n")
+                        matching_text.insert(tk.END, "Image: " + name)
+                        break
+        except FileNotFoundError:
+            matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 # End of Button contents ---------------------------------------------------#
 
@@ -569,12 +616,12 @@ progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 # label.pack(side="left", padx=(15, 1), pady=10)
 
 # Create the "Browse" button
-browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_file, style="Custom.TButton")
+browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1,10), pady=10)
 
 # Extract Zip file button
-# browse_button = ttk.Button(top_button_frame, text="Extract ZIP", command=browse_zip, style="Custom.TButton")
-# browse_button.pack(side="left", padx=(1,10), pady=10)
+browse_button = ttk.Button(top_button_frame, text="Extract Bundle", command=browse_file, style="Custom.TButton")
+browse_button.pack(side="left", padx=(1,10), pady=10)
 
 # Extract TGZ file button
 # browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")

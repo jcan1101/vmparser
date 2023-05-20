@@ -10,7 +10,7 @@ import tarfile
 selected_folder_path = os.getcwd()
 vmware_version = ""
 
-BUILDVER = "0.5.9"
+BUILDVER = "0.6.2"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -57,6 +57,8 @@ def network_info():
     vswitch_file = selected_folder_path + "/commands/esxcfg-vswitch_-l.txt"
     vmknic_file = selected_folder_path + "/commands/esxcfg-vmknic_-l.txt"
 
+    matching_text.tag_configure("bold", font=("Arial", 10, "bold"))
+
     try:
         with open(nicinfo_file, 'r') as file:
             lines = file.readlines()
@@ -67,10 +69,9 @@ def network_info():
                 matching_lines.append(line.strip())
 
         with open(vmknic_file, 'r') as file:
-            matching_lines.append("                       ")
-            matching_lines.append("VM Kernel Port Info:")
-            matching_text.insert(tk.END, "VM Kernel Port Info:\n")
-            matching_lines.append("_______________________")
+            matching_lines.append("----------------------")
+            matching_lines.append("VM Kernel Port Info: |")
+            matching_lines.append("----------------------")
             matching_lines.append("")
             lines = file.readlines()
             for line in lines:
@@ -81,9 +82,9 @@ def network_info():
 
         with open(vswitch_file, 'r') as file:
             matching_lines.append("")
-            matching_lines.append("                       ")
-            matching_lines.append("vSwitch Info:")
-            matching_lines.append("_______________________")
+            matching_lines.append("----------------------")
+            matching_lines.append("     vSwitch Info:   |")
+            matching_lines.append("----------------------")
             matching_lines.append("")
             lines = file.readlines()
             for line in lines:
@@ -108,13 +109,18 @@ def storage_info():
     disk_volume_path = selected_folder_path + "/commands/df.txt"
     storage_disks = selected_folder_path + "/commands/localcli_storage-core-path-list.txt"
     nvme_info = selected_folder_path + "/commands/localcli_nvme-namespace-list.txt"
+    disk_info = selected_folder_path + "/commands/localcli_storage-core-device-list.txt"
     storage_file_path = "Review/storage.txt"
 
     adapters_content = ""
     disk_volume_lines = []
     storage_disks_lines = []
+    disk_info_lines = []
     nvme_content = ""
 
+# -----------------------------------------------------------------------------------------------------
+#       Make sure things continue when files aren't seen
+# -----------------------------------------------------------------------------------------------------
     try:
         with open(adapters_path, 'r') as adapters_file:
             adapters_content = adapters_file.read()
@@ -139,34 +145,74 @@ def storage_info():
     except FileNotFoundError:
         matching_text.insert(tk.END, "NVMe info file not found.\n")
 
+    try:
+        with open(disk_info, 'r') as disk_info_file:
+            disk_info_lines = disk_info_file.readlines()
+    except FileNotFoundError:
+        matching_text.insert(tk.END, "Disk info file not found.\n")
+
+# -----------------------------------------------------------------------------------------------------
+#   Creating Headers for the display
+# -----------------------------------------------------------------------------------------------------
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
-        "=== Storage Adapters ===",
-        "------------------------",
+        "-------------------------",
+        "=== Storage Adapters ===|",
+        "-------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed above the storage disks' content
     custom_header_storage_disks = [
-        "=== Physical Disk Path ===",
-        "---------------------------",
+        "----------------------------------",
+        "=== Physical Disk SAS Address ===|",
+        "----------------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed between the files' content
     custom_lines = [
-        "=== Mounted Volumes ===",
-        "-----------------------",
+        "------------------------",
+        "=== Mounted Volumes ===|",
+        "------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed above the nvme_info content
     custom_header_nvme_info = [
-        "=== NVMe Info ===",
-        "-----------------",
+        "------------------",
+        "=== NVMe Info ===|",
+        "------------------",
         "",
     ]
 
+    # Custom lines of text to be displayed above the disk_info content
+    custom_header_disk_info = [
+        "---------------------------",
+        "=== Physical Disk Info ===|",
+        "---------------------------",
+        "",
+    ]
+# -----------------------------------------------------------------------------------------------------
+    # Filter the lines based on keywords for disk_info
+
+    disk_info_filtered_lines = []
+    # Specify the keywords to filter
+    disk_keywords = ['Size:', 'Display Name:', 'Vendor', 'Model:', 'Devfs', 'Device Type:', 'Is SSD', 'Is SAS', ]
+
+    # Filter the lines based on keywords
+    filtered_lines = []
+
+    for line in disk_info_lines:
+        if any(line.lstrip().startswith(keyword) for keyword in disk_keywords):
+            disk_info_filtered_lines.append(line)
+            if 'Is SAS:' in line:
+                disk_info_filtered_lines.append(
+                    "-------------------------------------------------------------------------\n")
+
+    # Create disk_info variable with filtered text
+    disk_info_filtered_text = "\n".join(custom_header_disk_info) + "\n" + "\n".join(disk_info_filtered_lines)
+# -----------------------------------------------------------------------------------------------------
     # Read the contents of disk_volume_path
     with open(disk_volume_path, 'r') as disk_volume_file:
         disk_volume_lines = disk_volume_file.readlines()
@@ -193,11 +239,14 @@ def storage_info():
 
     # Concatenate the lines of text with the filtered lines
     filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
-
+# -----------------------------------------------------------------------------------------------------
+#           Display contents of all variables to text window
+# -----------------------------------------------------------------------------------------------------
     # Concatenate the lines of text with the file contents
     display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
                    "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
                    "\n".join(custom_header_nvme_info) + "\n" + nvme_content + "\n\n" + \
+                   disk_info_filtered_text + "\n\n" + \
                    filtered_text
 
     # Display the matching lines in the window
@@ -207,6 +256,8 @@ def storage_info():
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
+# -----------------------------------------------------------------------------------------------------
+
 
 # Open Review Folder
 def open_folder_explorer():
@@ -318,6 +369,45 @@ def vsan_disk_info():
                     else:
                         matching_text.insert(tk.END, word + ' ')
                 matching_text.insert(tk.END, '\n')
+
+            # Here you can add the provided code
+        disk_volume_path = selected_folder_path + "/commands/df.txt"
+        storage_disks_lines = lines  # We'll use the lines variable you defined above
+
+        # Custom lines of text to be displayed above the storage disks' content
+        custom_header_storage_disks = [
+            "=== Physical Disk Path ===",
+            "---------------------------",
+            "",
+        ]
+
+        # Read the contents of disk_volume_path
+        with open(disk_volume_path, 'r') as disk_volume_file:
+            disk_volume_lines = disk_volume_file.readlines()
+
+        # Process the lines and split them into columns
+        table_data = []
+        for line in disk_volume_lines:
+            columns = line.strip().split()
+            table_data.append(columns)
+
+        # Format the table
+        table = tabulate(table_data, headers='firstrow', tablefmt='grid')
+
+        # Specify the keywords to filter
+        keywords = ['Device:', 'Target Identifier:', 'Display Name:', 'Adapter:']
+
+        # Filter the lines based on keywords
+        filtered_lines = []
+        for line in storage_disks_lines:
+            if any(keyword in line for keyword in keywords):
+                filtered_lines.append(line)
+                if 'Target Identifier:' in line:
+                    filtered_lines.append("-------------------------------------------------------------------------\n")
+
+        # Concatenate the lines of text with the filtered lines
+        filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
+        matching_text.insert(tk.END, filtered_text)
 
         # Save the content to a separate file
         with open(output_file_path, 'w') as output_file:
@@ -598,11 +688,11 @@ network_button.pack(side="left", padx=5, pady=10)
 storage_button = ttk.Button(top_button_frame, text="Storage Info", command=storage_info, style="Custom.TButton")
 storage_button.pack(side="left", padx=5, pady=10)
 
-# Create the "Button 4" button
+# Create the "VSAN Disk" button
 button4 = ttk.Button(top_button_frame, text="VSAN Disks", style="Custom.TButton", command=vsan_disk_info)
 button4.pack(side="left", padx=5, pady=10)
 
-# Create the "Button 5" button
+# Create the "Boot Log" button
 button5 = ttk.Button(top_button_frame, text="Boot Log", style="Custom.TButton", command=boot_log_info)
 button5.pack(side="left", padx=5, pady=10)
 
