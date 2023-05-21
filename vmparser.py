@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, ttk, messagebox
+from tkinter import filedialog, ttk
 from tabulate import tabulate
 import os
 import subprocess
@@ -11,7 +11,7 @@ selected_folder_path = os.getcwd()
 vmware_version = ""
 
 # Track build version
-BUILDVER = "0.6.4"
+BUILDVER = "0.6.7"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -57,7 +57,8 @@ def driver_info():
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + vmware_version + "\n")
     matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
-    matching_text.insert(tk.END, "\n\nDell Packages Installed:\n" + "-------------------------\n" + "\n".join(del_lines))
+    matching_text.insert(tk.END, "\n\nDell Packages Installed:\n" + "----------------"
+                                                                    "---------\n" + "\n".join(del_lines))
 
     # Save the matching lines to the output file
     with open(driver_file_path, 'w') as output_file:
@@ -185,43 +186,47 @@ def storage_info():
 # -----------------------------------------------------------------------------------------------------
 #   Creating Headers for the display
 # -----------------------------------------------------------------------------------------------------
+
+    # Configure the tag for bold formatting
+    matching_text.tag_configure("bold", font=("Arial", 10, "bold"))
+
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
-        "-------------------------",
-        "=== Storage Adapters ===|",
-        "-------------------------",
+        "--------------------------------------------------",
+        "  === Storage Adapters ===",
+        "--------------------------------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed above the storage disks' content
     custom_header_storage_disks = [
-        "----------------------------------",
-        "=== Physical Disk SAS Address ===|",
-        "----------------------------------",
+        "--------------------------------------------------------------------",
+        "  === Physical Disk SAS Address ===",
+        "--------------------------------------------------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed between the files' content
     custom_lines = [
-        "------------------------",
-        "=== Mounted Volumes ===|",
-        "------------------------",
+        "------------------------------------------------",
+        "   === Mounted Volumes ===     ",
+        "------------------------------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed above the nvme_info content
     custom_header_nvme_info = [
-        "------------------",
-        "=== NVMe Info ===|",
-        "------------------",
+        "----------------------------------",
+        " === NVMe Info ===",
+        "----------------------------------",
         "",
     ]
 
     # Custom lines of text to be displayed above the disk_info content
     custom_header_disk_info = [
-        "---------------------------",
-        "=== Physical Disk Info ===|",
-        "---------------------------",
+        "---------------------------------------------------",
+        "  === Physical Disk Info ===",
+        "---------------------------------------------------",
         "",
     ]
 # -----------------------------------------------------------------------------------------------------
@@ -230,9 +235,6 @@ def storage_info():
     disk_info_filtered_lines = []
     # Specify the keywords to filter
     disk_keywords = ['Size:', 'Display Name:', 'Vendor', 'Model:', 'Devfs', 'Device Type:', 'Is SSD', 'Is SAS', ]
-
-    # Filter the lines based on keywords
-    filtered_lines = []
 
     for line in disk_info_lines:
         if any(line.lstrip().startswith(keyword) for keyword in disk_keywords):
@@ -273,16 +275,50 @@ def storage_info():
 # -----------------------------------------------------------------------------------------------------
 #           Display contents of all variables to text window
 # -----------------------------------------------------------------------------------------------------
-    # Concatenate the lines of text with the file contents
+    # Clear the text widget
+    matching_text.delete(1.0, tk.END)
+
+    # Insert the custom headers with the bold tag
+    for line in custom_header_adapters:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the adapters_content
+    matching_text.insert(tk.END, adapters_content + "\n\n")
+
+    # Insert the custom lines with the bold tag
+    for line in custom_lines:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the table
+    matching_text.insert(tk.END, table + "\n\n\n")
+
+    # Insert the custom headers for NVMe info with the bold tag
+    for line in custom_header_nvme_info:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the NVMe content
+    matching_text.insert(tk.END, nvme_content + "\n\n")
+
+    # Insert the custom headers for disk info with the bold tag
+    for line in custom_header_disk_info:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the disk info filtered text
+    matching_text.insert(tk.END, "\n".join(disk_info_filtered_lines) + "\n\n")
+
+    # Insert the custom headers for storage disks with the bold tag
+    for line in custom_header_storage_disks:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the filtered text
+    matching_text.insert(tk.END, "\n".join(filtered_lines))
+
+    # Concatenate the lines of text with the file contents for saving to a file
     display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
                    "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
                    "\n".join(custom_header_nvme_info) + "\n" + nvme_content + "\n\n" + \
-                   disk_info_filtered_text + "\n\n" + \
-                   filtered_text
-
-    # Display the matching lines in the window
-    matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, display_text)
+                   "\n".join(custom_header_disk_info) + "\n" + "\n".join(disk_info_filtered_lines) + "\n\n" + \
+                   "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
 
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
@@ -387,7 +423,7 @@ def vsan_disk_info():
                 for word in words:
                     if word.startswith('naa.') and word in flagged_words:
                         matching_text.insert(tk.END, word + ' ', 'red')
-                    elif ("/naa." in word or "error" in stripped_line.lower() or "Failed" in stripped_line):
+                    elif "/naa." in word or "error" in stripped_line.lower() or "Failed" in stripped_line:
                         subwords = word.split('/')
                         for subword in subwords:
                             if subword.startswith('naa.'):
@@ -400,45 +436,6 @@ def vsan_disk_info():
                     else:
                         matching_text.insert(tk.END, word + ' ')
                 matching_text.insert(tk.END, '\n')
-
-            # Here you can add the provided code
-        disk_volume_path = selected_folder_path + "/commands/df.txt"
-        storage_disks_lines = lines  # We'll use the lines variable you defined above
-
-        # Custom lines of text to be displayed above the storage disks' content
-        custom_header_storage_disks = [
-            "=== Physical Disk Path ===",
-            "---------------------------",
-            "",
-        ]
-
-        # Read the contents of disk_volume_path
-        with open(disk_volume_path, 'r') as disk_volume_file:
-            disk_volume_lines = disk_volume_file.readlines()
-
-        # Process the lines and split them into columns
-        table_data = []
-        for line in disk_volume_lines:
-            columns = line.strip().split()
-            table_data.append(columns)
-
-        # Format the table
-        table = tabulate(table_data, headers='firstrow', tablefmt='grid')
-
-        # Specify the keywords to filter
-        keywords = ['Device:', 'Target Identifier:', 'Display Name:', 'Adapter:']
-
-        # Filter the lines based on keywords
-        filtered_lines = []
-        for line in storage_disks_lines:
-            if any(keyword in line for keyword in keywords):
-                filtered_lines.append(line)
-                if 'Target Identifier:' in line:
-                    filtered_lines.append("-------------------------------------------------------------------------\n")
-
-        # Concatenate the lines of text with the filtered lines
-        filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
-        matching_text.insert(tk.END, filtered_text)
 
         # Save the content to a separate file
         with open(output_file_path, 'w') as output_file:
@@ -462,7 +459,7 @@ def update_progress(progressbar, value, maximum):
 def extract_zip(file_path):
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
- #   file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
+
     if not file_path:
         return
 
@@ -667,7 +664,6 @@ def browse_folder():
             matching_text.insert(tk.END, "\n\nCustom Image not found.")
 # -----------------------------------------------------------------------------------------------------
 
-
 # ----------------------  End of Functions --------------------------------#
 
 
@@ -699,13 +695,15 @@ progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 # label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
 # label.pack(side="left", padx=(15, 1), pady=10)
 
+# --------------------------------- Create Buttons ---------------------------------
+
 # Create the "Browse" button
 browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,10), pady=10)
+browse_button.pack(side="left", padx=(1, 10), pady=10)
 
 # Extract Zip file button
 browse_button = ttk.Button(top_button_frame, text="Extract Bundle", command=browse_file, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,10), pady=10)
+browse_button.pack(side="left", padx=(1, 10), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
@@ -749,7 +747,10 @@ review_button.pack(side="left", padx=10, pady=10)
 # Configure the button style
 style = ttk.Style()
 style.configure("Custom.TButton", foreground="black", background="white", font=("Arial", 10))
+# --------------------------------- End Buttons ---------------------------------
 
+
+# Welcome Message to show at start
 matching_text.insert(tk.END, "Welcome to VMparser!" "\n\n")
 matching_text.insert(tk.END, "You can start by Extracting your ZIP/TGZ file or Browse to an already extracted bundle "
                              "folder" "\n\n")
