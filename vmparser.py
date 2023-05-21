@@ -243,14 +243,9 @@ def storage_info():
                 disk_info_filtered_lines.append(
                     "-------------------------------------------------------------------------\n")
 
-    # Create disk_info variable with filtered text
-    disk_info_filtered_text = "\n".join(custom_header_disk_info) + "\n" + "\n".join(disk_info_filtered_lines)
 # -----------------------------------------------------------------------------------------------------
-    # Read the contents of disk_volume_path
-    with open(disk_volume_path, 'r') as disk_volume_file:
-        disk_volume_lines = disk_volume_file.readlines()
 
-    # Process the lines and split them into columns
+    # Process the disk_volume info and split them into columns
     table_data = []
     for line in disk_volume_lines:
         columns = line.strip().split()
@@ -270,8 +265,6 @@ def storage_info():
             if 'Target Identifier:' in line:
                 filtered_lines.append("-------------------------------------------------------------------------\n")
 
-    # Concatenate the lines of text with the filtered lines
-    filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
 # -----------------------------------------------------------------------------------------------------
 #           Display contents of all variables to text window
 # -----------------------------------------------------------------------------------------------------
