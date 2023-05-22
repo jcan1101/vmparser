@@ -11,7 +11,7 @@ selected_folder_path = os.getcwd()
 vmware_version = ""
 
 # Track build version
-BUILDVER = "0.6.7"
+BUILDVER = "0.6.8"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -100,7 +100,8 @@ def network_info():
             lines = file.readlines()
             for line in lines:
                 matching_text.insert(tk.END, line.strip() + "\n")
-                matching_text.insert(tk.END, "---------------------------------------------------\n")
+                matching_text.insert(tk.END, "----------------------------------------------------------------------"
+                                             "---------------------------------------------------------------------\n")
 
 # -----------------------------------------------------------------------------------------------------
 #       Read vsiwtch_file contents
