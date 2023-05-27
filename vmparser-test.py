@@ -253,10 +253,11 @@ def storage_info():
 
 # Open Review Folder
 def open_folder_explorer():
+    """Open review folder using file explorer"""
     # Set Review folder in CWD
     folder_path = os.path.join(os.getcwd(), "Review")
-    # Use the 'explorer' command in Windows to open the folder in File Explorer
-    subprocess.Popen(f'explorer "{folder_path}"')
+    # Use the webbrowser module to open the folder in File Explorer
+    webbrowser.open('file://' + os.path.realpath(folder_path))
 
 
 # Show vmkernel logs
