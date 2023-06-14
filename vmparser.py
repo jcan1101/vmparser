@@ -13,7 +13,7 @@ selected_folder_path = os.getcwd()
 VMWARE_VERSION = ""
 
 # Track build version
-BUILDVER = "0.7.1"
+BUILDVER = "0.7.2"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -446,6 +446,8 @@ def extract_zip(file_path):
         if file.endswith('.tgz'):
             with tarfile.open(os.path.join(extract_path, file), errorlevel=1) as tar_ref:
                 members = tar_ref.getmembers()
+                root_dirs = {member.name.split('/')[0] for member in members if
+                             '/' in member.name}  # Get root directories from the .tgz file
                 for i, member in enumerate(members):
                     try:
                         member.name = member.name.replace(':', '_')  # Replace colons with underscore
@@ -464,13 +466,12 @@ def extract_zip(file_path):
     # matching_text.insert(tk.END, "Files extracted to" + extract_path + "\n\n")
 
     # List all directories under the extraction path
-    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
+    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d)) and d in root_dirs]
 
     global selected_folder_path
 
     # Check if there are any directories in the list
     if extracted_dirs:
-        # In this example, I'm assuming you want the first directory. Change this if needed.
         selected_folder_path = os.path.join(extract_path, extracted_dirs[0])
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "Extracted folder path is: " + selected_folder_path + "\n\n")
@@ -521,6 +522,8 @@ def extract_tgz(file_path):
 
     with tarfile.open(file_path, 'r') as tar_ref:
         members = tar_ref.getmembers()
+        root_dirs = {member.name.split('/')[0] for member in members if
+                     '/' in member.name}  # Get root directories from the .tgz file
         for i, member in enumerate(members):
             try:
                 member.name = member.name.replace(':', '_')  # Replace colons with underscore
@@ -537,12 +540,12 @@ def extract_tgz(file_path):
 
     matching_text.insert(tk.END, "Extracted .tgz file.\n\n")
 
-    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
+    extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d)) and d in root_dirs]
 
     global selected_folder_path
 
     if extracted_dirs:
-        selected_folder_path = os.path.join(extract_path, extracted_dirs[0])
+        selected_folder_path = os.path.join(extract_path, extracted_dirs[0])  # Choose the first matched directory
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "Extracted folder path is: " + selected_folder_path + "\n\n")
     else:

@@ -1,16 +1,19 @@
-import tkinter as tk
-from tkinter import filedialog, ttk, messagebox
-from tabulate import tabulate
+"""Modules for main os related actions"""
 import os
 import subprocess
 import gzip
 import zipfile
 import tarfile
+import tkinter as tk
+from tkinter import filedialog, ttk
+from tabulate import tabulate
+
 
 selected_folder_path = os.getcwd()
-vmware_version = ""
+VMWARE_VERSION = ""
 
-BUILDVER = "0.5.9"
+# Track build version
+BUILDVER = "0.7.1"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -25,13 +28,17 @@ else:
 
 
 def driver_info():
+    """Display driver info"""
     module_file_path = os.path.join(selected_folder_path, "commands", "esxcfg-module_-q.txt")
     vib_file_path = os.path.join(selected_folder_path, "commands", "localcli_software-vib-list.txt")
     driver_file_path = "Review/drivers.txt"
 
     matching_lines = []
+    del_lines = []
 
-    # Read the contents of module file and replace "_" with "-"
+
+#       Read the contents of module file and replace "_" with "-"
+
     with open(module_file_path, 'r') as esx_file:
         esx_lines = [line.strip().replace("_", "-") for line in esx_file.readlines()]
 
@@ -40,18 +47,24 @@ def driver_info():
         for line in vib_file:
             if any(esx_line in line for esx_line in esx_lines):
                 matching_lines.append(line.strip())
+            if "DEL" in line:
+                del_lines.append(line.strip())
 
     # Display the matching lines in the window
     matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + vmware_version + "\n")
+    matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + VMWARE_VERSION + "\n")
     matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
+    matching_text.insert(tk.END, "\n\nDell Packages Installed:\n" + "----------------"
+                                                                    "---------\n" + "\n".join(del_lines))
 
     # Save the matching lines to the output file
     with open(driver_file_path, 'w') as output_file:
         output_file.write("Drivers in use: \n" + "\n".join(matching_lines))
+        output_file.write("\n\nDell Packages Installed: \n" + "\n".join(del_lines))
 
 
 def network_info():
+    """Display Network files"""
     network_file_path = "Review/network.txt"
     nicinfo_file = selected_folder_path + "/commands/nicinfo.sh.txt"
     vswitch_file = selected_folder_path + "/commands/esxcfg-vswitch_-l.txt"
@@ -59,6 +72,8 @@ def network_info():
 
     matching_text.tag_configure("bold", font=("Arial", 10, "bold"))
     matching_text.delete(1.0, tk.END)
+
+#       Read nicinfo_file contents
 
     try:
         with open(nicinfo_file, 'r') as file:
@@ -68,6 +83,8 @@ def network_info():
                     break
                 matching_text.insert(tk.END, line.strip() + "\n")
 
+#       Read contents of vmkernel port
+
         with open(vmknic_file, 'r') as file:
             matching_text.insert(tk.END, "----------------------\n")
             matching_text.insert(tk.END, "    VM Kernel Port Info:       |\n", "bold")
@@ -75,7 +92,12 @@ def network_info():
             lines = file.readlines()
             for line in lines:
                 matching_text.insert(tk.END, line.strip() + "\n")
-                matching_text.insert(tk.END, "---------------------------------------------------\n")
+                matching_text.insert(tk.END, "----------------------------------------------------------------------"
+                                             "----------------------------------------------------------------------"
+                                             "-------------------------------------------------------------------\n")
+
+
+#       Read vsiwtch_file contents
 
         with open(vswitch_file, 'r') as file:
             matching_text.insert(tk.END, "\n")
@@ -96,12 +118,14 @@ def network_info():
         with open(network_file_path, 'w') as output_file:
             output_file.write(matching_text.get(1.0, tk.END))
 
+#   Show error if files aren't found
     except FileNotFoundError:
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "One of the command files not found.")
 
 
 def storage_info():
+    """Display storage Info"""
     adapters_path = selected_folder_path + "/commands/localcli_storage-core-adapter-list.txt"
     disk_volume_path = selected_folder_path + "/commands/df.txt"
     storage_disks = selected_folder_path + "/commands/localcli_storage-core-path-list.txt"
@@ -115,9 +139,9 @@ def storage_info():
     disk_info_lines = []
     nvme_content = ""
 
-# -----------------------------------------------------------------------------------------------------
+
 #       Make sure things continue when files aren't seen
-# -----------------------------------------------------------------------------------------------------
+
     try:
         with open(adapters_path, 'r') as adapters_file:
             adapters_content = adapters_file.read()
@@ -148,52 +172,48 @@ def storage_info():
     except FileNotFoundError:
         matching_text.insert(tk.END, "Disk info file not found.\n")
 
-# -----------------------------------------------------------------------------------------------------
-#   Creating Headers for the display
-# -----------------------------------------------------------------------------------------------------
+    # Configure the tag for bold formatting
+    matching_text.tag_configure("bold", font=("Arial", 10, "bold"))
+
     # Custom lines of text to be displayed above the adapters' content
     custom_header_adapters = [
-        "=== Storage Adapters ===",
-        "------------------------",
+        "--------------------------------------------------",
+        "  === Storage Adapters ===",
+        "--------------------------------------------------",
         "",
     ]
 
-    # Custom lines of text to be displayed above the storage disks' content
     custom_header_storage_disks = [
-        "=== Physical Disk Path ===",
-        "---------------------------",
+        "--------------------------------------------------------------------",
+        "  === Physical Disk SAS Address ===",
+        "--------------------------------------------------------------------",
         "",
     ]
 
-    # Custom lines of text to be displayed between the files' content
     custom_lines = [
-        "=== Mounted Volumes ===",
-        "-----------------------",
+        "------------------------------------------------",
+        "   === Mounted Volumes ===     ",
+        "------------------------------------------------",
         "",
     ]
 
-    # Custom lines of text to be displayed above the nvme_info content
     custom_header_nvme_info = [
-        "=== NVMe Info ===",
-        "-----------------",
+        "----------------------------------",
+        " === NVMe Info ===",
+        "----------------------------------",
         "",
     ]
 
-    # Custom lines of text to be displayed above the disk_info content
     custom_header_disk_info = [
-        "=== Disk Info ===",
-        "-----------------",
+        "---------------------------------------------------",
+        "  === Physical Disk Info ===",
+        "---------------------------------------------------",
         "",
     ]
-# -----------------------------------------------------------------------------------------------------
-    # Filter the lines based on keywords for disk_info
 
     disk_info_filtered_lines = []
     # Specify the keywords to filter
     disk_keywords = ['Size:', 'Display Name:', 'Vendor', 'Model:', 'Devfs', 'Device Type:', 'Is SSD', 'Is SAS', ]
-
-    # Filter the lines based on keywords
-    filtered_lines = []
 
     for line in disk_info_lines:
         if any(line.lstrip().startswith(keyword) for keyword in disk_keywords):
@@ -202,14 +222,9 @@ def storage_info():
                 disk_info_filtered_lines.append(
                     "-------------------------------------------------------------------------\n")
 
-    # Create disk_info variable with filtered text
-    disk_info_filtered_text = "\n".join(custom_header_disk_info) + "\n" + "\n".join(disk_info_filtered_lines)
 # -----------------------------------------------------------------------------------------------------
-    # Read the contents of disk_volume_path
-    with open(disk_volume_path, 'r') as disk_volume_file:
-        disk_volume_lines = disk_volume_file.readlines()
 
-    # Process the lines and split them into columns
+    # Process the disk_volume info and split them into columns
     table_data = []
     for line in disk_volume_lines:
         columns = line.strip().split()
@@ -229,39 +244,65 @@ def storage_info():
             if 'Target Identifier:' in line:
                 filtered_lines.append("-------------------------------------------------------------------------\n")
 
-    # Concatenate the lines of text with the filtered lines
-    filtered_text = "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
-# -----------------------------------------------------------------------------------------------------
-#           Display contents of all variables to text window
-# -----------------------------------------------------------------------------------------------------
-    # Concatenate the lines of text with the file contents
+    matching_text.delete(1.0, tk.END)
+
+    # Insert the custom headers with the bold tag
+    for line in custom_header_adapters:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the adapters_content
+    matching_text.insert(tk.END, adapters_content + "\n\n")
+
+    # Insert the custom lines with the bold tag
+    for line in custom_lines:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the table
+    matching_text.insert(tk.END, table + "\n\n\n")
+
+    # Insert the custom headers for NVMe info with the bold tag
+    for line in custom_header_nvme_info:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the NVMe content
+    matching_text.insert(tk.END, nvme_content + "\n\n")
+
+    # Insert the custom headers for disk info with the bold tag
+    for line in custom_header_disk_info:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the disk info filtered text
+    matching_text.insert(tk.END, "\n".join(disk_info_filtered_lines) + "\n\n")
+
+    # Insert the custom headers for storage disks with the bold tag
+    for line in custom_header_storage_disks:
+        matching_text.insert(tk.END, line + "\n", "bold")
+
+    # Insert the filtered text
+    matching_text.insert(tk.END, "\n".join(filtered_lines))
+
+    # Concatenate the lines of text with the file contents for saving to a file
     display_text = "\n".join(custom_header_adapters) + "\n" + adapters_content + "\n\n" + \
                    "\n".join(custom_lines) + "\n" + table + "\n\n\n" + \
                    "\n".join(custom_header_nvme_info) + "\n" + nvme_content + "\n\n" + \
-                   disk_info_filtered_text + "\n\n" + \
-                   filtered_text
-
-    # Display the matching lines in the window
-    matching_text.delete(1.0, tk.END)
-    matching_text.insert(tk.END, display_text)
+                   "\n".join(custom_header_disk_info) + "\n" + "\n".join(disk_info_filtered_lines) + "\n\n" + \
+                   "\n".join(custom_header_storage_disks) + "\n" + "\n".join(filtered_lines)
 
     # Save the matching lines to the output file
     with open(storage_file_path, 'w') as storage_file:
         storage_file.write(display_text)
-# -----------------------------------------------------------------------------------------------------
 
 
-# Open Review Folder
 def open_folder_explorer():
     """Open review folder using file explorer"""
     # Set Review folder in CWD
     folder_path = os.path.join(os.getcwd(), "Review")
-    # Use the webbrowser module to open the folder in File Explorer
-    webbrowser.open('file://' + os.path.realpath(folder_path))
+    # Use the 'explorer' command in Windows to open the folder in File Explorer
+    subprocess.Popen(f'explorer "{folder_path}"')
 
 
-# Show vmkernel logs
 def show_filtered_logs():
+    """Show vmkernel logs"""
     log_files = []
     log_file_path = selected_folder_path + "/var/run/log/vmkernel"
     filter_text = filter_entry.get()
@@ -298,13 +339,9 @@ def show_filtered_logs():
         matching_text.delete(1.0, tk.END)
         matching_text.insert(tk.END, "No matching lines found.")
 
-# Show version Info
-# def version_show_info():
-    # matching_text.delete(1.0, tk.END)
-    # matching_text.insert(tk.END, "Show version info:  \n" + vmware_version + "\n\n")
-
 
 def boot_log_info():
+    """Show vmksummary boot info"""
     file_path = selected_folder_path + "/var/run/log/vmksummary.log"
 
     try:
@@ -324,6 +361,7 @@ def boot_log_info():
 
 
 def vsan_disk_info():
+    """Display vsan disk files"""
     file_path = selected_folder_path + "/commands/vdq_-q--H.txt"
     output_file_path = "Review/vsan_output.txt"
 
@@ -349,7 +387,7 @@ def vsan_disk_info():
                 for word in words:
                     if word.startswith('naa.') and word in flagged_words:
                         matching_text.insert(tk.END, word + ' ', 'red')
-                    elif ("/naa." in word or "error" in stripped_line.lower() or "Failed" in stripped_line):
+                    elif "/naa." in word or "error" in stripped_line.lower() or "Failed" in stripped_line:
                         subwords = word.split('/')
                         for subword in subwords:
                             if subword.startswith('naa.'):
@@ -373,16 +411,17 @@ def vsan_disk_info():
 
 
 def update_progress(progressbar, value, maximum):
+    """Setup progress bar widget"""
     progressbar["value"] = value
     progressbar["maximum"] = maximum
     progressbar.update()
 
 
-# Extract ZIP file
 def extract_zip(file_path):
+    """Extract ZIP file"""
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
- #   file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"),))
+
     if not file_path:
         return
 
@@ -411,9 +450,15 @@ def extract_zip(file_path):
                     try:
                         member.name = member.name.replace(':', '_')  # Replace colons with underscore
                         tar_ref.extract(member, path=extract_path)
-                        update_progress(progress, i+1, len(members))
+                        update_progress(progress, i + 1, len(members))
+                    except FileNotFoundError as e:
+                        print(f"File {member.name} not found: {str(e)}")
+                    except PermissionError as e:
+                        print(f"No permission to extract {member.name}: {str(e)}")
+                    except tarfile.TarError as e:
+                        print(f"Error occurred while extracting {member.name}: {str(e)}")
                     except Exception as e:
-                        print(f"Could not extract {member.name} due to {str(e)}")
+                        print(f"An unexpected error occurred while extracting {member.name}: {str(e)}")
 
     # messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
     # matching_text.insert(tk.END, "Files extracted to" + extract_path + "\n\n")
@@ -441,8 +486,8 @@ def extract_zip(file_path):
             vm_version_content = vm_version_file.read()
         matching_text.insert(tk.END, "Discovered VMware Build:\n")
         matching_text.insert(tk.END, vm_version_content)
-        global vmware_version
-        vmware_version = vm_version_content
+        global VMWARE_VERSION
+        VMWARE_VERSION = vm_version_content
 
     except FileNotFoundError:
         matching_text.insert(tk.END, "VM Version file not found.")
@@ -459,13 +504,11 @@ def extract_zip(file_path):
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
-# Extract TGZ file
 def extract_tgz(file_path):
+    """Extract TGZ file"""
 
-    # Display file path
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "Selected File: " + file_path + "\n")
-#    file_path = filedialog.askopenfilename(filetypes=(("Tgz Files", "*.tgz"),))
     if not file_path:
         return
 
@@ -482,13 +525,17 @@ def extract_tgz(file_path):
             try:
                 member.name = member.name.replace(':', '_')  # Replace colons with underscore
                 tar_ref.extract(member, path=extract_path)
-                update_progress(progress, i+1, len(members))
+                update_progress(progress, i + 1, len(members))
+            except FileNotFoundError as e:
+                print(f"File {member.name} not found: {str(e)}")
+            except PermissionError as e:
+                print(f"No permission to extract {member.name}: {str(e)}")
+            except tarfile.TarError as e:
+                print(f"Error occurred while extracting {member.name}: {str(e)}")
             except Exception as e:
-                print(f"Could not extract {member.name} due to {str(e)}")
+                print(f"An unexpected error occurred while extracting {member.name}: {str(e)}")
 
     matching_text.insert(tk.END, "Extracted .tgz file.\n\n")
-
-#    messagebox.showinfo("Success", f"Files extracted successfully to {extract_path}")
 
     extracted_dirs = [d for d in os.listdir(extract_path) if os.path.isdir(os.path.join(extract_path, d))]
 
@@ -510,8 +557,8 @@ def extract_tgz(file_path):
             vm_version_content = vm_version_file.read()
         matching_text.insert(tk.END, "Discovered VMware Build:\n")
         matching_text.insert(tk.END, vm_version_content)
-        global vmware_version
-        vmware_version = vm_version_content
+        global VMWARE_VERSION
+        VMWARE_VERSION = vm_version_content
 
     except FileNotFoundError:
         matching_text.insert(tk.END, "VM Version file not found.")
@@ -528,8 +575,8 @@ def extract_tgz(file_path):
         matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
 
-# chose a ZIP or TGZ file to extract
 def browse_file():
+    """chose a ZIP or TGZ file to extract"""
     # Open a file dialog and ask the user to select a .zip or .tgz file
     file_path = filedialog.askopenfilename(filetypes=(("Zip Files", "*.zip"), ("Tgz Files", "*.tgz"),))
 
@@ -547,8 +594,8 @@ def browse_file():
         extract_tgz(file_path)
 
 
-# Browse to vmbundle folder
 def browse_folder():
+    """Browse to vmbundle folder"""
     folder_path = filedialog.askdirectory()
     if folder_path:
         # Do something with the selected folder path
@@ -566,8 +613,8 @@ def browse_folder():
                 vm_version_content = vm_version_file.read()
             matching_text.insert(tk.END, "Discovered VMware Build:\n")
             matching_text.insert(tk.END, vm_version_content)
-            global vmware_version
-            vmware_version = vm_version_content
+            global VMWARE_VERSION
+            VMWARE_VERSION = vm_version_content
 
         except FileNotFoundError:
             matching_text.insert(tk.END, "VM Version file not found.")
@@ -582,8 +629,6 @@ def browse_folder():
                         break
         except FileNotFoundError:
             matching_text.insert(tk.END, "\n\nCustom Image not found.")
-
-# End of Button contents ---------------------------------------------------#
 
 
 # Create Window
@@ -609,22 +654,15 @@ top_button_frame.grid(row=1, column=0, padx=10, pady=10)
 progress = ttk.Progressbar(root, orient="horizontal", length=200)
 progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 
-# Create the label
-# label_text = "Browse to Extracted Folder -->"
-# label = tk.Label(top_button_frame, text=label_text, anchor="e", width=30)
-# label.pack(side="left", padx=(15, 1), pady=10)
+# --------------------------------- Create Buttons ---------------------------------
 
 # Create the "Browse" button
 browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,10), pady=10)
+browse_button.pack(side="left", padx=(1, 10), pady=10)
 
 # Extract Zip file button
 browse_button = ttk.Button(top_button_frame, text="Extract Bundle", command=browse_file, style="Custom.TButton")
-browse_button.pack(side="left", padx=(1,10), pady=10)
-
-# Extract TGZ file button
-# browse_button = ttk.Button(top_button_frame, text="Extract TGZ", command=browse_tgz, style="Custom.TButton")
-# browse_button.pack(side="left", padx=(1,15), pady=10)
+browse_button.pack(side="left", padx=(1, 10), pady=10)
 
 # Create a separator widget
 separator = ttk.Separator(top_button_frame, orient="vertical")
@@ -642,11 +680,11 @@ network_button.pack(side="left", padx=5, pady=10)
 storage_button = ttk.Button(top_button_frame, text="Storage Info", command=storage_info, style="Custom.TButton")
 storage_button.pack(side="left", padx=5, pady=10)
 
-# Create the "Button 4" button
+# Create the "VSAN Disk" button
 button4 = ttk.Button(top_button_frame, text="VSAN Disks", style="Custom.TButton", command=vsan_disk_info)
 button4.pack(side="left", padx=5, pady=10)
 
-# Create the "Button 5" button
+# Create the "Boot Log" button
 button5 = ttk.Button(top_button_frame, text="Boot Log", style="Custom.TButton", command=boot_log_info)
 button5.pack(side="left", padx=5, pady=10)
 
@@ -655,7 +693,7 @@ show_logs_button = ttk.Button(top_button_frame, text="Show Logs", command=show_f
 show_logs_button.pack(side="left", padx=5, pady=10)
 
 # Create the filter entry box
-filter_entry = tk.Entry(top_button_frame, width=20)
+filter_entry = tk.Entry(top_button_frame, width=40)
 filter_entry.pack(side="left", padx=5, pady=10)
 
 # Bind the <Return> event to the filter entry box
@@ -668,10 +706,13 @@ review_button.pack(side="left", padx=10, pady=10)
 # Configure the button style
 style = ttk.Style()
 style.configure("Custom.TButton", foreground="black", background="white", font=("Arial", 10))
+# --------------------------------- End Buttons ---------------------------------
 
-matching_text.insert(tk.END, "Welcome to VMparser!" "\n\n")
-matching_text.insert(tk.END, "You can start by Extracting your ZIP/TGZ file or Browse to an already extracted bundle "
-                             "folder" "\n\n")
+
+# Welcome Message to show at start
+matching_text.insert(tk.END, "Welcome to VMware Log parser!" + "\n\n")
+matching_text.insert(tk.END, "You can start by Extracting your ZIP/TGZ file or Browse to an already "
+                             "extracted bundle folder" + "\n\n")
 
 # Start the main loop
 root.mainloop()
