@@ -1,3 +1,4 @@
+# vmparser created by Jason Canfield
 """Modules for main os related actions"""
 import os
 import subprocess
@@ -13,7 +14,7 @@ selected_folder_path = os.getcwd()
 VMWARE_VERSION = ""
 
 # Track build version
-BUILDVER = "0.7.2"
+BUILDVER = "0.7.3"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -432,23 +433,25 @@ def extract_zip(file_path):
 
     matching_text.insert(tk.END, "Extracting .zip file...\n")
 
+    tgz_files_extracted = []  # List to store the names of the .tgz files extracted from the .zip
+
     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         members = zip_ref.namelist()
         total_members = len(members)
         for i, member in enumerate(members):
             with open(os.path.join(extract_path, member), 'wb') as f_out:
                 f_out.write(zip_ref.read(member))
+            if member.endswith('.tgz'):
+                tgz_files_extracted.append(member)  # Add the name of the .tgz file to the list
             update_progress(progress, i + 1, total_members)
 
         matching_text.insert(tk.END, "Extracted .zip, now extracting .tgz\n\n")
 
-    for file in os.listdir(extract_path):
-        if file.endswith('.tgz'):
-            with tarfile.open(os.path.join(extract_path, file), errorlevel=1) as tar_ref:
-                members = tar_ref.getmembers()
-                root_dirs = {member.name.split('/')[0] for member in members if
-                             '/' in member.name}  # Get root directories from the .tgz file
-                for i, member in enumerate(members):
+    for file in tgz_files_extracted:  # Only extract the .tgz files that came from the .zip
+        with tarfile.open(os.path.join(extract_path, file), errorlevel=1) as tar_ref:
+            members = tar_ref.getmembers()
+            root_dirs = {member.name.split('/')[0] for member in members if '/' in member.name}  # Get root directories from the .tgz file
+            for i, member in enumerate(members):
                     try:
                         member.name = member.name.replace(':', '_')  # Replace colons with underscore
                         tar_ref.extract(member, path=extract_path)

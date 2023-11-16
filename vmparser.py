@@ -1,3 +1,4 @@
+# vmparser created by Jason Canfield
 """Modules for main os related actions"""
 import os
 import subprocess
@@ -13,7 +14,7 @@ selected_folder_path = os.getcwd()
 VMWARE_VERSION = ""
 
 # Track build version
-BUILDVER = "0.7.3"
+BUILDVER = "0.7.4"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -31,14 +32,14 @@ def driver_info():
     """Display driver info"""
     module_file_path = os.path.join(selected_folder_path, "commands", "esxcfg-module_-q.txt")
     vib_file_path = os.path.join(selected_folder_path, "commands", "localcli_software-vib-list.txt")
+    svtag_path = os.path.join(selected_folder_path, "commands", "smbiosDump.txt")
     driver_file_path = "Review/drivers.txt"
 
     matching_lines = []
     del_lines = []
+    svtag_info = []
 
-
-#       Read the contents of module file and replace "_" with "-"
-
+    # Read the contents of module file and replace "_" with "-"
     with open(module_file_path, 'r') as esx_file:
         esx_lines = [line.strip().replace("_", "-") for line in esx_file.readlines()]
 
@@ -50,15 +51,28 @@ def driver_info():
             if "DEL" in line:
                 del_lines.append(line.strip())
 
-    # Display the matching lines in the window
+    # Read svtag info
+    with open(svtag_path, 'r') as svtag_file:
+        lines = svtag_file.readlines()
+        for i, line in enumerate(lines):
+            if "System Info" in line:
+                svtag_info = lines[i + 1:i + 4]  # Get the next 3 lines
+                break
+
+    # Convert svtag_info list to string
+    svtag_info_str = ''.join(svtag_info)
+
+    # Display the matching lines and svtag_info in the window
     matching_text.delete(1.0, tk.END)
     matching_text.insert(tk.END, "ESXi version:  \n" + "----------------\n" + VMWARE_VERSION + "\n")
+    matching_text.insert(tk.END, "System Info:\n" + "----------------\n" + svtag_info_str + "\n")
     matching_text.insert(tk.END, "Drivers in use:\n" + "----------------\n" + "\n".join(matching_lines))
-    matching_text.insert(tk.END, "\n\nDell Packages Installed:\n" + "----------------"
-                                                                    "---------\n" + "\n".join(del_lines))
+    matching_text.insert(tk.END, "\n\nDell Packages Installed:\n" + "-------------------------\n" + "\n".join(del_lines))
 
     # Save the matching lines to the output file
     with open(driver_file_path, 'w') as output_file:
+        output_file.write("ESXi version: \n" + VMWARE_VERSION + "\n")
+        output_file.write("System Info: \n" + svtag_info_str + "\n")
         output_file.write("Drivers in use: \n" + "\n".join(matching_lines))
         output_file.write("\n\nDell Packages Installed: \n" + "\n".join(del_lines))
 
