@@ -8,13 +8,13 @@ import tarfile
 import tkinter as tk
 from tkinter import filedialog, ttk
 from tabulate import tabulate
-
+import requests
 
 selected_folder_path = os.getcwd()
 VMWARE_VERSION = ""
 
 # Track build version
-BUILDVER = "0.7.4"
+BUILDVER = "0.7.5"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -26,6 +26,25 @@ if not os.path.exists(export_path):
     print(f"Parsed files will be stored in '{export_path}' Folder.")
 else:
     print(f"Parsed files will be stored in '{export_path}' Folder.")
+
+def get_new_version(url):
+    """
+    Get the version string from the file at the given URL.
+
+    Parameters:
+    url (str): The URL of the file to be downloaded.
+
+    Returns:
+    str: The content of the file (new version string) if successful, None otherwise.
+    """
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Ensure the request was successful
+        return response.text.strip()
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
 
 
 def driver_info():
@@ -649,6 +668,14 @@ def browse_folder():
         except FileNotFoundError:
             matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
+
+# Check for a new version at the start of the program
+url = "http://100.92.104.204/vmparser.txt"  # Replace with the actual URL
+current_version = BUILDVER  # Using the BUILDVER variable from your code
+
+new_version = get_new_version(url)
+if new_version and new_version != current_version:
+    tk.messagebox.showinfo("Update Available", f"A newer version ({new_version}) of the application is available.")
 
 # Create Window
 root = tk.Tk()
