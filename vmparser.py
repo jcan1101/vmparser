@@ -28,6 +28,7 @@ else:
     print(f"Parsed files will be stored in '{export_path}' Folder.")
 
 def get_new_version(url):
+
     """
     Get the version string from the file at the given URL.
 
