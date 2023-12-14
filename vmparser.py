@@ -14,7 +14,7 @@ selected_folder_path = os.getcwd()
 VMWARE_VERSION = ""
 
 # Track build version
-BUILDVER = "0.7.5"
+BUILDVER = "0.7.6"
 
 # Setup Review Folder for output text files
 export_path = "Review"
@@ -704,7 +704,7 @@ progress.grid(row=1, column=0, sticky='w', padx=10, pady=10)
 # --------------------------------- Create Buttons ---------------------------------
 
 # Create the "Browse" button
-browse_button = ttk.Button(top_button_frame, text="Browse", command=browse_folder, style="Custom.TButton")
+browse_button = ttk.Button(top_button_frame, text="Browse Folder", command=browse_folder, style="Custom.TButton")
 browse_button.pack(side="left", padx=(1, 10), pady=10)
 
 # Extract Zip file button
