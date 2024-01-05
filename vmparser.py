@@ -669,7 +669,7 @@ def browse_folder():
         except FileNotFoundError:
             matching_text.insert(tk.END, "\n\nCustom Image not found.")
 
-
+"""
 # Check for a new version at the start of the program
 url = "http://100.92.104.204/vmparser.txt"  # Replace with the actual URL
 current_version = BUILDVER  # Using the BUILDVER variable from your code
@@ -677,7 +677,7 @@ current_version = BUILDVER  # Using the BUILDVER variable from your code
 new_version = get_new_version(url)
 if new_version and new_version != current_version:
     tk.messagebox.showinfo("Update Available", f"A newer version ({new_version}) of the application is available.")
-
+"""
 # Create Window
 root = tk.Tk()
 
